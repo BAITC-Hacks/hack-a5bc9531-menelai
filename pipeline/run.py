@@ -2,7 +2,7 @@
 """
 Пайплайн кейса «Граф денег» (HackAlem AI, AML).
 
-Реализует pipeline/RULES.md v3: метрики → «окрашенные деньги» → временные паттерны →
+Реализует pipeline/RULES.md v4: метрики → «окрашенные деньги» → временные паттерны →
 циклы → каскад ролей → кластеры Louvain → priority → выгрузки → проверки.
 
 Запуск:  uv run python run.py --data ../task/data --out ../out
@@ -11,6 +11,7 @@
 
 import argparse
 import json
+import sys
 import time
 from collections import defaultdict
 from pathlib import Path
@@ -34,6 +35,7 @@ PCT_THRESHOLDS = dict(
     coord_in_deg=(0.95, "in", "in_deg", 3),
     coord_out_deg=(0.70, "out", "out_deg", 3),
     coord_betw_thr=(0.95, "both", "betweenness", 0.0),
+    coord_min_kzt=(0.80, "in", "in_kzt", 200_000),
     cons_in_deg=(0.95, "in", "in_deg", 3),
     cons_in_kzt=(0.80, "in", "in_kzt", 200_000),
     dist_out_deg=(0.95, "out", "out_deg", 15),
@@ -54,6 +56,12 @@ T = dict(
 # Приоритет (RULES.md §3): вес для «нет данных» вместо веса peripheral; множитель при слабой связи с делом (1.0 — отключить)
 NO_DATA_WEIGHT = 0.5
 WEAK_SEED_PRIORITY_MULT = 0.7
+# seed уже известны аналитику: фокус топа — на новых узлах (1.0 — отключить)
+SEED_PRIORITY_MULT = 0.85
+# вес peripheral растёт с близостью к ближайшей роли: 0,2 + 0,3 × доля выполненных условий (< 0,5 — ниже любой роли)
+PERIPHERAL_NEAR_BONUS = 0.3
+# role_score у «нет данных»: роль-заглушка, ниже минимума peripheral с данными (0,4)
+NO_DATA_ROLE_SCORE = 0.2
 
 
 def resolve_thresholds(f, spec=PCT_THRESHOLDS) -> dict:
@@ -274,26 +282,28 @@ def margin_le(v, thr):
 def roles(f, T):
     """Каскад RULES.md §1 сверху вниз, первое сработавшее правило даёт роль. T — разрешённые пороги."""
     betw_thr = T["coord_betw_thr"]
-    role, score, rule_hit, nearest = [], [], [], []
+    role, score, rule_hit, nearest, near_share = [], [], [], [], []
     tr_mid, tr_half = (T["tr_pass_lo"] + T["tr_pass_hi"]) / 2, (T["tr_pass_hi"] - T["tr_pass_lo"]) / 2
     for g, r in f.iterrows():
         pt = r.pass_through
         seed_link = r.in_cycle or r.n_seed_upstream >= T["coord_seed_up"] or (r.is_seed and r.in_from_seed_deg > 0)
+        vol = max(r.in_kzt, r.out_kzt)
         # условия каждого правила (для peripheral считаем, насколько узел «почти» подошёл)
         conds = {
             "coordinator": [r.in_deg >= T["coord_in_deg"], r.out_deg >= T["coord_out_deg"], seed_link,
-                            r.betweenness >= betw_thr],
+                            r.betweenness >= betw_thr, vol >= T["coord_min_kzt"]],
             "consolidator": [r.in_deg >= T["cons_in_deg"], pd.notna(pt) and pt < T["cons_pass_max"],
                              r.in_kzt >= T["cons_in_kzt"],
                             pd.notna(r.max_payer_share) and r.max_payer_share < T["cons_max_payer"]],
             "distributor": [r.out_deg >= T["dist_out_deg"], r.out_deg >= T["dist_ratio"] * r.in_deg],
             "transit": [r.in_deg >= 1, r.out_deg >= 1, pd.notna(pt) and T["tr_pass_lo"] <= pt <= T["tr_pass_hi"],
                         r.in_kzt >= T["tr_in_kzt"], r.fast_out_share >= T["tr_fast_min"], not r.is_seed],
-            "terminal": [r.depth in (1, 2, 3), (r.out_deg == 0) or (pd.notna(pt) and pt < T["term_pass_max"]),
+            "terminal": [0 < r.depth < T["max_depth"], (r.out_deg == 0) or (pd.notna(pt) and pt < T["term_pass_max"]),
                          r.in_kzt >= T["term_in_kzt"], not r.is_seed],
         }
         if r.no_data:                                            # правило 0: нет данных
-            role.append("peripheral"); score.append(1.0); rule_hit.append("nodata"); nearest.append("")
+            role.append("peripheral"); score.append(NO_DATA_ROLE_SCORE); rule_hit.append("nodata"); nearest.append("")
+            near_share.append(0.0)
             continue
         hit = next((k for k, c in conds.items() if all(c)), None)
         if hit is None:
@@ -302,12 +312,13 @@ def roles(f, T):
             shares = {k: sum(c) / len(c) for k, c in conds.items()}
             near = max(shares, key=shares.get)
             role.append("peripheral"); score.append(1 - 0.6 * shares[near]); rule_hit.append("none")
-            nearest.append(near)
+            nearest.append(near); near_share.append(shares[near])
             continue
         # ИНТЕРПРЕТАЦИЯ §2: «на пороге ≈ 0,5» → score = 0,5 + 0,5 × mean(запасов над порогами)
         mg = {
             "coordinator": [margin_ge(r.in_deg, T["coord_in_deg"]), margin_ge(r.out_deg, T["coord_out_deg"]),
-                            margin_ge(r.betweenness, betw_thr), margin_ge(r.n_seed_upstream, T["coord_seed_up"])],
+                            margin_ge(r.betweenness, betw_thr), margin_ge(r.n_seed_upstream, T["coord_seed_up"]),
+                            margin_ge(vol, T["coord_min_kzt"])],
             "consolidator": [margin_ge(r.in_deg, T["cons_in_deg"]), margin_le(pt, T["cons_pass_max"]),
                              margin_ge(r.in_kzt, T["cons_in_kzt"]), margin_le(r.max_payer_share, T["cons_max_payer"])],
             "distributor": [margin_ge(r.out_deg, T["dist_out_deg"]),
@@ -317,8 +328,10 @@ def roles(f, T):
             "terminal": [margin_le(0 if pd.isna(pt) else pt, T["term_pass_max"]), margin_ge(r.in_kzt, T["term_in_kzt"])],
         }[hit]
         role.append(hit); score.append(0.5 + 0.5 * float(np.mean(mg))); rule_hit.append(hit); nearest.append(hit)
+        near_share.append(1.0)
     f["role"] = role
     f["nearest_role"] = nearest
+    f["near_share"] = np.round(near_share, 4)
     f["role_score"] = np.round(score, 4)
     f["rule_hit"] = rule_hit
     # RULES.md §5: «подозрительная» роль при малой доле seed-денег — возможен легальный контрагент (магазин, работодатель)
@@ -384,14 +397,22 @@ def cluster_table(G, f, comms):
 
 # ------------------------------------------------------------------ priority
 
+def role_weight(f):
+    """Вес роли в приоритете: ROLE_WEIGHT; у «нет данных» — NO_DATA_WEIGHT; у peripheral —
+    0,2 + PERIPHERAL_NEAR_BONUS × доля выполненных условий ближайшей роли (near_share)."""
+    w = f.role.map(ROLE_WEIGHT).where(f.role != "peripheral",
+                                      ROLE_WEIGHT["peripheral"] + PERIPHERAL_NEAR_BONUS * f.near_share)
+    return np.where(f.no_data, NO_DATA_WEIGHT, w)
+
+
 def priority(f):
     """base = mean(pct seed_money_in, pct n_seed_upstream, pct in_kzt (у seed — out_kzt), pct betweenness)
-    × вес роли (у «нет данных» — NO_DATA_WEIGHT) × WEAK_SEED_PRIORITY_MULT при weak_seed_link."""
+    × role_weight × WEAK_SEED_PRIORITY_MULT при weak_seed_link × SEED_PRIORITY_MULT у seed."""
     pct = lambda s: s.rank(pct=True, method="average")
     p_in = pct(f.in_kzt).where(~f.is_seed, pct(f.out_kzt))    # у seed вход занижен выгрузкой
     base = (pct(f.seed_money_in) + pct(f.n_seed_upstream) + p_in + pct(f.betweenness)) / 4
-    w = np.where(f.no_data, NO_DATA_WEIGHT, f.role.map(ROLE_WEIGHT))
-    w = w * np.where(f.weak_seed_link, WEAK_SEED_PRIORITY_MULT, 1.0)
+    w = role_weight(f) * np.where(f.weak_seed_link, WEAK_SEED_PRIORITY_MULT, 1.0)
+    w = w * np.where(f.is_seed, SEED_PRIORITY_MULT, 1.0)
     f["priority_score"] = np.round(base * w, 4)
 
 
@@ -412,7 +433,10 @@ def evidence(r, T) -> str:
     e = _evidence(r, T)
     if r.weak_seed_link:
         e = e.replace(f", seed-денег {pct_str(r.seed_share)}", "") + \
-            f"; связь с seed слабая ({pct_str(r.seed_share, T['weak_seed_share'])}), возможен легальный контрагент"
+            f"; связь с seed слабая ({pct_str(r.seed_share, T['weak_seed_share'])})"
+        tail = ", возможен легальный контрагент"          # пояснение — только если влезает в 200 символов
+        if len(e) + len(tail) <= 200:
+            e += tail
     return e
 
 
@@ -427,8 +451,9 @@ def _evidence(r, T) -> str:
         link = "цикл" if r.in_cycle else ""
         link = ", ".join(x for x in [link, f"seed выше {r.n_seed_upstream}"] if x)
         return (f"coordinator: ≥{thr_deg(T['coord_in_deg'])} плат., ≥{thr_deg(T['coord_out_deg'])} получ., "
-                f"посредн. ≥{dec(T['coord_betw_thr'], 5)} (p95), ≥{T['coord_seed_up']} seed/цикл; факт: {r.in_deg} плат., "
-                f"{r.out_deg} получ., посредн. {dec_thr(r.betweenness, T['coord_betw_thr'], 5)}, {link}, {sd}")
+                f"посредн. ≥{dec(T['coord_betw_thr'], 5)}, ≥{T['coord_seed_up']} seed/цикл, оборот ≥{thr_k(T['coord_min_kzt'])}; "
+                f"факт: {r.in_deg} плат., {r.out_deg} получ., посредн. {dec_thr(r.betweenness, T['coord_betw_thr'], 5)}, "
+                f"{link}, оборот {kzt(max(r.in_kzt, r.out_kzt))}, {sd}")
     if r.role == "consolidator":
         return (f"consolidator: ≥{thr_deg(T['cons_in_deg'])} плат., пропуск <{dec(T['cons_pass_max'], 1)}, "
                 f"вход ≥{thr_k(T['cons_in_kzt'])}, макс. плат. <{pct_str(T['cons_max_payer'])}; факт: {r.in_deg} плат., "
@@ -444,7 +469,7 @@ def _evidence(r, T) -> str:
                 f"пропуск {dec_thr(r.pass_through, T['tr_pass_lo'] if r.pass_through < 1 else T['tr_pass_hi'])}, "
                 f"вывод ≤2 дн. {pct_str(r.fast_out_share)}")
     if r.role == "terminal":
-        return (f"terminal: колено 1–3, пропуск <{dec(T['term_pass_max'], 1)}, вход ≥{thr_k(T['term_in_kzt'])}; "
+        return (f"terminal: колено 1–{T['max_depth'] - 1}, пропуск <{dec(T['term_pass_max'], 1)}, вход ≥{thr_k(T['term_in_kzt'])}; "
                 f"факт: колено {r.depth}, вход {kzt(r.in_kzt)} "
                 f"от {r.in_deg} плат., пропуск {dec_thr(r.pass_through, T['term_pass_max'])}, {sd}")
     return (f"peripheral: признаков роли не выявлено; факт: {r.in_deg} плат., вход {kzt(r.in_kzt)}, "
@@ -461,7 +486,8 @@ def why(r, sync_days, T) -> str:
     parts.append(f"Получил {kzt(r.in_kzt)} от {r.in_deg} плат. ({r.in_tx} пер.), отдал {kzt(r.out_kzt)} "
                  f"{r.out_deg} получ. ({r.out_tx} пер.), пропуск {dec_thr(r.pass_through, T['cons_pass_max'])}.")
     if r.is_seed:
-        parts.append("Seed-клиент: вход занижен выгрузкой, масштаб оценён по исходящим.")
+        parts.append(f"Seed-клиент: вход занижен выгрузкой, масштаб оценён по исходящим; уже известен аналитику — "
+                     f"приоритет ×{dec(SEED_PRIORITY_MULT)}.")
     share = "узел сам seed" if r.is_seed else f"доля в узле {pct_str(r.seed_share)}"
     parts.append(f"Выше по потоку (≤4 шага) {r.n_seed_upstream} seed; «красные» (seed) деньги на входе "
                  f"{kzt(r.seed_money_in)}, {share}.")
@@ -484,7 +510,7 @@ def why(r, sync_days, T) -> str:
 
 METRICS = ["in_deg", "out_deg", "in_kzt", "out_kzt", "in_tx", "out_tx", "pass_through", "seed_share", "seed_money_in",
            "n_seed_upstream", "betweenness", "pagerank", "in_cycle", "fast_out_share", "sync_in_events",
-           "truncated", "depth", "is_seed", "max_payer_share", "no_data", "nearest_role"]
+           "truncated", "depth", "is_seed", "max_payer_share", "no_data", "nearest_role", "near_share"]
 
 
 def jnum(x):
@@ -608,7 +634,7 @@ def outputs(f, G, edges, tx, ctab, per_cycles, sync_days, out_dir: Path, meta, T
                  top_in=top_links(edges, g, "in"), top_out=top_links(edges, g, "out"))
         nm[str(g)] = d
     nm["_meta"] = meta
-    (out_dir / "node_metrics.json").write_text(json.dumps(nm, ensure_ascii=False, indent=1))
+    (out_dir / "node_metrics.json").write_text(json.dumps(nm, ensure_ascii=False, indent=1), encoding="utf-8")
     return nr, top, nmc, emc
 
 
@@ -634,14 +660,14 @@ def checks(nr, top, ctab, nmc, emc, out_dir: Path, n_nodes: int, n_edges: int):
     assert len(nmc) == n_nodes and list(nmc.columns) == NODE_METRICS_COLS and set(nmc.gid) == set(nr.gid)
     assert len(emc) == n_edges and list(emc.columns) == EDGE_METRICS_COLS and emc.first_date.notna().all()
     for fn in ["nodes_roles.csv", "node_metrics.csv", "edge_metrics.csv"]:
-        head = (out_dir / fn).read_text().splitlines()[1:]
+        head = (out_dir / fn).read_text(encoding="utf-8").splitlines()[1:]
         assert not any(",True," in l or ",False," in l or l.endswith((",True", ",False")) for l in head), fn
     top_p = nr.set_index("gid").priority_score
     for tg in ctab.top_gids:
         p = [top_p[int(g)] for g in tg.split(";")]
         assert p == sorted(p, reverse=True), tg
     # JSON: ключи — все gid строками + _meta; все gid внутри (top_in/top_out/cycles) существуют в nodes
-    nm = json.loads((out_dir / "node_metrics.json").read_text())
+    nm = json.loads((out_dir / "node_metrics.json").read_text(encoding="utf-8"))
     gids = set(nr.gid.astype(str))
     assert len(nm) == n_nodes + 1 and set(nm) - {"_meta"} == gids
     for d in (v for k, v in nm.items() if k != "_meta"):
@@ -681,6 +707,7 @@ def compute(edges, nodes, tx, T_base=T):
 
 
 def main():
+    sys.stdout.reconfigure(encoding="utf-8")     # Windows: консоль/пайп в cp1251 не печатает «≥», «₸»
     ap = argparse.ArgumentParser()
     ap.add_argument("--data", default="../task/data")
     ap.add_argument("--out", default="../out")
@@ -698,9 +725,11 @@ def main():
     ctab = cluster_table(G, f, comms)
 
     meta = dict(
-        rules="pipeline/RULES.md v3",
+        rules="pipeline/RULES.md v4",
         thresholds={k: (round(float(v), 8) if isinstance(v, float) else int(v)) for k, v in Tr.items()},
         role_weight=ROLE_WEIGHT, no_data_weight=NO_DATA_WEIGHT, weak_seed_priority_mult=WEAK_SEED_PRIORITY_MULT,
+        seed_priority_mult=SEED_PRIORITY_MULT, peripheral_near_bonus=PERIPHERAL_NEAR_BONUS,
+        no_data_role_score=NO_DATA_ROLE_SCORE,
         role_counts={r: int((f.role == r).sum()) for r in ROLES},
         n_nodes=len(f), n_edges=len(edges), n_tx=len(tx), n_seed=int(f.is_seed.sum()),
         n_truncated=int(f.truncated.sum()), n_cycles_le5=n_cycles, n_clusters=len(comms),

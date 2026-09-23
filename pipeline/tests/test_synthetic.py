@@ -6,6 +6,7 @@
 (действуют floor = пороги v1); p80 in_kzt = 300 тыс. и p95 betweenness — из данных. Тест проверяет каскад правил,
 а не калибровку перцентилей.
 """
+import subprocess
 import sys
 from pathlib import Path
 
@@ -113,6 +114,7 @@ def test_pattern_details():
     assert "макс. плат." in f.loc[C, "evidence"]
     # v3: «нет данных» — отдельный флаг; изолированный seed без денег в графе
     assert f.loc[Z, "no_data"] and f.loc[ISO, "no_data"] and not f.loc[L, "no_data"]
+    assert f.loc[Z, "role_score"] == run.NO_DATA_ROLE_SCORE == f.loc[ISO, "role_score"]   # роль-заглушка
     assert f.loc[ISO, "seed_share"] == 0 and f.loc[ISO, "seed_money_in"] == 0
     assert "0 вход., 0 исход." in f.loc[ISO, "evidence"] and "запросить исходящие" in f.loc[Z, "evidence"]
 
@@ -127,6 +129,41 @@ def test_priority_weights():
     assert abs(k[Z] - run.NO_DATA_WEIGHT / run.ROLE_WEIGHT["peripheral"]) < 1e-2
     assert abs(k[M] - run.WEAK_SEED_PRIORITY_MULT) < 1e-2
     assert abs(k[C] - 1) < 1e-9
+    # seed уже известны: × SEED_PRIORITY_MULT; у не-seed без изменений
+    g = f.copy()
+    mult, run.SEED_PRIORITY_MULT = run.SEED_PRIORITY_MULT, 1.0
+    try:
+        run.priority(g)
+    finally:
+        run.SEED_PRIORITY_MULT = mult
+    assert abs(f.priority_score[S1] / g.priority_score[S1] - mult) < 1e-2
+    assert f.priority_score[C] == g.priority_score[C]
+    # peripheral: вес 0,2 + 0,3 × доля выполненных условий ближайшей роли («медленный транзит» L почти transit)
+    far = f.assign(near_share=0.0)
+    run.priority(far)
+    assert f.loc[L, "near_share"] > 0.5
+    want = (0.2 + run.PERIPHERAL_NEAR_BONUS * f.loc[L, "near_share"]) / 0.2
+    assert abs(f.priority_score[L] / far.priority_score[L] - want) < 1e-2
+
+
+def test_coordinator_turnover_floor():
+    f, Tr = result()
+    g = f.copy()
+    g.loc[K, ["in_kzt", "out_kzt"]] = Tr["coord_min_kzt"] / 2      # тот же узел, но мелкие суммы
+    run.roles(g, Tr)
+    assert f.loc[K, "role"] == "coordinator" and g.loc[K, "role"] != "coordinator"
+
+
+def test_cli_on_other_dataset(tmp_path):
+    """run.py целиком (выгрузки + checks) на выгрузке другого размера: ни одного зашитого числа из ТЗ."""
+    edges, nodes, tx = build()
+    edges["depth"] = edges.src.map(nodes.set_index("gid").depth) + 1
+    for name, df in (("edges", edges), ("nodes", nodes), ("transactions", tx)):
+        df.to_parquet(tmp_path / f"{name}.parquet")
+    r = subprocess.run([sys.executable, str(Path(run.__file__)), "--data", str(tmp_path), "--out", str(tmp_path / "out")],
+                       capture_output=True)
+    assert r.returncode == 0, r.stderr.decode("utf-8", "replace")[-2000:]
+    assert len(pd.read_csv(tmp_path / "out" / "nodes_roles.csv")) == len(nodes)
 
 
 if __name__ == "__main__":

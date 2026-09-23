@@ -5,6 +5,7 @@
 Запуск: cd pipeline && uv run python sensitivity.py   → out/sensitivity.md
 """
 import argparse
+import sys
 import time
 from pathlib import Path
 
@@ -15,7 +16,7 @@ import run
 # (ключ, целочисленный?, «мягче» = вниз?)  — для «<»-порогов (pass_max) мягче = вверх
 KEYS = [
     ("coord_in_deg", True, True), ("coord_out_deg", True, True), ("coord_seed_up", True, True),
-    ("coord_betw_thr", False, True),
+    ("coord_betw_thr", False, True), ("coord_min_kzt", False, True),
     ("cons_in_deg", True, True), ("cons_pass_max", False, False), ("cons_in_kzt", False, True),
     ("cons_max_payer", False, False),
     ("dist_out_deg", True, True), ("dist_ratio", False, True),
@@ -64,6 +65,7 @@ def evaluate(f0, T):
 
 
 def main():
+    sys.stdout.reconfigure(encoding="utf-8")     # Windows: консоль/пайп в cp1251 не печатает «≥», «₸»
     ap = argparse.ArgumentParser()
     ap.add_argument("--data", default="../task/data")
     ap.add_argument("--out", default="../out")
@@ -138,7 +140,7 @@ in_kzt ≥ {fmt(T0['cons_in_kzt'])} ₸, транзит ≥ {fmt(T0['tr_in_kzt']
 - Все пороги сразу: мягче — Jaccard {dec(allv.iloc[0].jaccard_top20)}, сменили роль {allv.iloc[0].сменили_роль};
   строже — Jaccard {dec(allv.iloc[1].jaccard_top20)}, сменили роль {allv.iloc[1].сменили_роль}.
 """
-    Path(a.out, "sensitivity.md").write_text(md)
+    Path(a.out, "sensitivity.md").write_text(md, encoding="utf-8")
     print(md)
     print(f"время {time.perf_counter() - t0:.1f} с")
 
