@@ -1,6 +1,18 @@
 import { useState, type FormEvent } from 'react'
 import { Link, NavLink, Outlet, useNavigate } from 'react-router'
-import { SearchIcon } from 'lucide-react'
+import { ChevronDownIcon, DatabaseIcon, SearchIcon, UploadIcon } from 'lucide-react'
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuGroup,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu'
+import { api, switchDataset } from '@/lib/api'
+import { num, periodLabel } from '@/lib/format'
+import { useApi } from '@/lib/use-api'
 import { cn } from '@/lib/utils'
 
 const NAV = [
@@ -11,7 +23,49 @@ const NAV = [
   { to: '/analysis', label: 'Анализ' },
   { to: '/assistant', label: 'Ассистент' },
   { to: '/method', label: 'Метод' },
+  { to: '/upload', label: 'Данные' },
 ]
+
+function DatasetMenu() {
+  const { data } = useApi(api.datasets)
+  const active = data?.datasets.find((d) => d.id === data.active)
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger
+        className="flex h-9 max-w-64 items-center gap-2 rounded-lg border border-input bg-card px-3 text-left text-[13px] transition-colors hover:border-gold/60"
+        aria-label="Активная выгрузка"
+      >
+        <DatabaseIcon className="size-4 shrink-0 text-muted-foreground" aria-hidden />
+        <span className="grid min-w-0 leading-tight">
+          <span className="truncate font-medium">{active?.name ?? 'нет выгрузки'}</span>
+          {active?.period && <span className="font-mono text-[10.5px] text-muted-foreground">{periodLabel(active.period)}</span>}
+        </span>
+        <ChevronDownIcon className="size-3.5 shrink-0 text-muted-foreground" aria-hidden />
+      </DropdownMenuTrigger>
+      <DropdownMenuContent className="w-72" align="start">
+        <DropdownMenuGroup>
+          <DropdownMenuLabel>Выгрузки</DropdownMenuLabel>
+          {data?.datasets.map((d) => (
+            <DropdownMenuItem key={d.id} onClick={() => d.id !== data.active && switchDataset(d.id)} className="grid gap-0.5">
+              <span className="flex items-center gap-2">
+                <span className={cn('size-1.5 shrink-0 rounded-full', d.id === data.active ? 'bg-gold' : 'bg-transparent')} aria-hidden />
+                <span className="truncate font-medium">{d.name}</span>
+                {d.source === 'bundled' && <span className="ml-auto font-mono text-[10.5px] text-muted-foreground">демо</span>}
+              </span>
+              <span className="pl-3.5 font-mono text-[11px] text-muted-foreground">
+                {num(d.nodes)} узлов{d.period ? ` · ${periodLabel(d.period)}` : ''}
+              </span>
+            </DropdownMenuItem>
+          ))}
+        </DropdownMenuGroup>
+        <DropdownMenuSeparator />
+        <DropdownMenuItem render={<Link to="/upload" />}>
+          <UploadIcon aria-hidden /> Загрузить новую…
+        </DropdownMenuItem>
+      </DropdownMenuContent>
+    </DropdownMenu>
+  )
+}
 
 function Logo() {
   return (
@@ -27,6 +81,7 @@ function Logo() {
 export default function AppLayout() {
   const navigate = useNavigate()
   const [query, setQuery] = useState('')
+  const { data: stats } = useApi(api.stats)
 
   // A full 18-digit gid opens its card; a tail is resolved by suffix on the network screen.
   const onSearch = (e: FormEvent) => {
@@ -64,6 +119,7 @@ export default function AppLayout() {
               </NavLink>
             ))}
           </nav>
+          <DatasetMenu />
           <form onSubmit={onSearch} role="search" className="ml-auto flex w-full items-center sm:w-auto">
             <label className="flex h-9 w-full items-center gap-2 rounded-lg border border-input bg-card px-3 transition-colors focus-within:border-gold/60 sm:w-72">
               <SearchIcon className="size-4 shrink-0 text-muted-foreground" aria-hidden />
@@ -86,7 +142,9 @@ export default function AppLayout() {
       <footer className="border-t">
         <div className="mx-auto flex max-w-[1360px] flex-wrap justify-between gap-2 px-4 py-4 text-xs text-muted-foreground md:px-6">
           <span>Все выводы — гипотезы для проверки аналитиком, не утверждения о причастности.</span>
-          <span className="font-mono">обезличенная выгрузка · июль 2026 · только переводы ≥ 5 000 ₸ внутри банка</span>
+          <span className="font-mono">
+            обезличенная выгрузка{stats ? ` · ${periodLabel(stats.period)} · только переводы ≥ ${num(stats.minTxKzt)} ₸ внутри банка` : ''}
+          </span>
         </div>
       </footer>
     </div>

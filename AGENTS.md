@@ -14,8 +14,9 @@ server/             Bun + Hono API, port 3001
   src/index.ts      entry
   src/app.ts        Hono app, /api mount, JSON 404/500
   src/routes/       routes/index.ts registers every resource; one file per resource
-  src/data/         load.ts reads the parquet files once at startup; types.ts
-  src/data/results.ts reads out/node_metrics.json, clusters.csv, top_nodes.csv once at startup (env OUT_DIR)
+  src/data/store.ts registry of datasets + the active one: `demo` from DATA_DIR + OUT_DIR, uploads from DATASETS_DIR (default data/datasets, gitignored)
+  src/data/dataset.ts loads one dataset (parquet via load.ts, out/ via results.ts, d3 layout, analytics, tools); routes call current() per request
+  src/routes/datasets.ts list / upload (multipart, 3 parquet) / activate / delete; upload runs pipeline/run.py as a subprocess (needs uv in PATH)
 client/             Vite + React 19 + TS + Tailwind v4 + shadcn/ui, port 5173
   src/router.tsx    route table (createBrowserRouter)
   src/layouts/      AppLayout: nav + gid search
@@ -23,7 +24,8 @@ client/             Vite + React 19 + TS + Tailwind v4 + shadcn/ui, port 5173
   src/lib/api.ts    typed fetch helpers, mirrors the server contract
 task/data/          edges.parquet, nodes.parquet, transactions.parquet (organizer data, read-only)
 docs/               project docs
-out/                pipeline CSVs (nodes_roles, clusters, top_nodes, node_metrics, edge_metrics) + node_metrics.json; server reads node_metrics.json, clusters.csv, top_nodes.csv
+out/                pipeline CSVs (nodes_roles, clusters, top_nodes, node_metrics, edge_metrics) + node_metrics.json for the demo dataset; server reads node_metrics.json, clusters.csv, top_nodes.csv
+Dockerfile          Railway image: bun + uv, pipeline venv pre-synced; railway.json selects it
 ```
 
 ## Commands
@@ -62,6 +64,7 @@ These are scored by the jury. Don't break them.
   - **Only transfers ≥ 5 000 KZT, only intra-bank, only outgoing.**
   - **Amount and count are separate signals.** The graph is directed and weighted. Any undirected method, such as Louvain, must be flagged as undirected.
   - **19 seeds have no edges at all**, but they must still appear in the output.
+  - The pipeline must run on any upload with the same schema: no dataset literals (2248, 444, 19, «июль») in code or evidence. The last hop is `max(depth)`; period, hop counts and min amount go into `_meta` and the UI reads them from `/api/stats`.
 - Required outputs, with a fixed schema:
   - `nodes_roles.csv`: exactly 2 248 rows. Columns `gid, role, role_score, cluster_id, priority_score, evidence`; evidence is ≤ 200 chars and contains numbers.
   - `clusters.csv`: `cluster_id, n_nodes, n_seed, sum_kzt_internal, top_gids, hypothesis`.

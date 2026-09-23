@@ -5,13 +5,19 @@ export const ROLES = ['coordinator', 'consolidator', 'distributor', 'transit', '
 export type Role = (typeof ROLES)[number]
 
 export type Stats = {
+  datasetId: string
+  datasetName: string
+  /** last crawl hop; nodes there have no outgoing edges because the crawl stopped */
+  maxDepth: number
+  /** smallest transfer amount present in the export */
+  minTxKzt: number
   nodes: number
   edges: number
   transactions: number
   seeds: number
   totalKzt: number
   period: [string, string]
-  /** node count per crawl hop 0..4 */
+  /** node count per crawl hop 0..maxDepth */
   byDepth: number[]
   /** null until pipeline/run.py has produced out/ */
   roles: Record<Role, number> | null
@@ -170,6 +176,32 @@ export type AssistantStatus = { llm: boolean; model: string; tools: string[] }
 export type AssistantStep = { tool: string; args: unknown; ok: boolean; summary: string }
 export type AssistantAnswer = { answer: string; trace: AssistantStep[]; model: string }
 
+// ---------------------------------------------------------------- /api/datasets
+
+export type DatasetInfo = {
+  id: string
+  name: string
+  source: 'bundled' | 'upload'
+  createdAt: string
+  nodes: number
+  edges: number
+  transactions: number
+  seeds: number
+  maxDepth: number
+  period: [string, string] | null
+  roles: Record<Role, number> | null
+}
+export type Datasets = { active: string; datasets: DatasetInfo[] }
+
+/** Upload failure: server message (Russian, shown verbatim) plus the pipeline log tail when present. */
+export class UploadError extends Error {
+  log?: string
+  constructor(message: string, log?: string) {
+    super(message)
+    this.log = log
+  }
+}
+
 export const CSV_FILES = ['nodes_roles.csv', 'clusters.csv', 'top_nodes.csv'] as const
 
 async function get<T>(path: string, init?: RequestInit): Promise<T> {
@@ -200,5 +232,21 @@ export const api = {
     get<T>(`/assistant/tools/${name}`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(args) }),
   ask: (question: string) =>
     get<AssistantAnswer>('/assistant/ask', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ question }) }),
+  datasets: () => get<Datasets>('/datasets'),
+  /** FormData: files nodes, edges, transactions (.parquet), optional name. The new dataset becomes active. */
+  uploadDataset: async (form: FormData) => {
+    const res = await fetch('/api/datasets', { method: 'POST', body: form })
+    const body = await res.json().catch(() => null)
+    if (!res.ok) throw new UploadError(body?.error ?? `${res.status} ${res.statusText}`, body?.log)
+    return body as { dataset: DatasetInfo; log: string }
+  },
+  activateDataset: (id: string) => get<{ active: string }>(`/datasets/${encodeURIComponent(id)}/activate`, { method: 'POST' }),
+  deleteDataset: (id: string) => get<{ active: string }>(`/datasets/${encodeURIComponent(id)}`, { method: 'DELETE' }),
   exportUrl: (file: (typeof CSV_FILES)[number]) => `/api/export/${file}`,
+}
+
+/** Every other endpoint serves the active dataset, so a switch reloads the whole app at `to`. */
+export async function switchDataset(id: string, to = '/') {
+  await api.activateDataset(id)
+  window.location.assign(to)
 }

@@ -4,8 +4,9 @@ import { Button } from '@/components/ui/button'
 import { Bar, GidLink, HypTag, LoadState, PageHeader, Panel, PriorityBar, RoleChip, RoleDot, StatStrip } from '@/components/kit'
 import { ROLE } from '@/lib/roles'
 import { api, CSV_FILES, ROLES, type Role } from '@/lib/api'
-import { dayMonth, dec, kztShort, num } from '@/lib/format'
+import { dec, kztShort, num, periodLabel, plural } from '@/lib/format'
 import { useApi } from '@/lib/use-api'
+import { depthColor } from '@/lib/depth'
 
 const SIGNAL_ROLES = ROLES.filter((r) => r !== 'peripheral')
 
@@ -15,14 +16,11 @@ const CSV_COLUMNS: Record<(typeof CSV_FILES)[number], string[]> = {
   'top_nodes.csv': ['rank', 'gid', 'role', 'priority_score', 'why'],
 }
 
-// Same hop colors as the network screen's «Колено» mode.
-const DEPTH_COLOR = ['#e66767', '#eda100', '#1baf7a', '#3987e5', '#9085e9']
-
 export default function OverviewPage() {
   const { data: stats, error, reload } = useApi(api.stats)
   if (!stats) return <LoadState error={error} reload={reload} />
 
-  const period = `${dayMonth(stats.period[0])}–${dayMonth(stats.period[1])}.${stats.period[1].slice(0, 4)}`
+  const period = periodLabel(stats.period)
 
   return (
     <>
@@ -31,7 +29,7 @@ export default function OverviewPage() {
         title={<span className="font-heading text-[clamp(2.5rem,5vw,4rem)]">Граф денег</span>}
         lede={
           <>
-            Банк знает {num(stats.seeds)} клиента-seed; от каждого прослежены исходящие переводы на 4 колена за июль 2026 — перед аналитиком{' '}
+            Банк знает {num(stats.seeds)} клиента-seed; от каждого прослежены исходящие переводы на {stats.maxDepth} {plural(stats.maxDepth, 'колено', 'колена', 'колен')} за {period} — перед аналитиком{' '}
             {num(stats.nodes)} клиентов. Задача — понять, кто собирает, кто прогоняет и кто распоряжается деньгами, и кого проверять первым.
           </>
         }
@@ -62,12 +60,12 @@ export default function OverviewPage() {
 
       <div className="grid gap-6 lg:grid-cols-2">
         <RolesPanel roles={stats.roles} nodes={stats.nodes} />
-        <DepthPanel byDepth={stats.byDepth} />
+        <DepthPanel byDepth={stats.byDepth} maxDepth={stats.maxDepth} />
       </div>
 
       <TopPanel />
 
-      <Traps byDepth4={stats.byDepth[4]} />
+      <Traps lastHop={stats.byDepth[stats.maxDepth] ?? 0} maxDepth={stats.maxDepth} />
 
       <Panel eyebrow="выгрузки" title="Три CSV из пайплайна">
         <div className="grid gap-4 sm:grid-cols-3">
@@ -137,7 +135,7 @@ function RolesPanel({ roles, nodes }: { roles: Record<Role, number> | null; node
   )
 }
 
-function DepthPanel({ byDepth }: { byDepth: number[] }) {
+function DepthPanel({ byDepth, maxDepth }: { byDepth: number[]; maxDepth: number }) {
   const max = Math.max(...byDepth)
   return (
     <Panel eyebrow="волна обхода по коленам" title="Сколько узлов открылось на каждом шаге">
@@ -148,13 +146,13 @@ function DepthPanel({ byDepth }: { byDepth: number[] }) {
             <Bar
               value={count}
               max={max}
-              background={depth === 4 ? `repeating-linear-gradient(45deg, ${DEPTH_COLOR[4]} 0 4px, transparent 4px 8px)` : DEPTH_COLOR[depth]}
+              background={depth === maxDepth ? `repeating-linear-gradient(45deg, ${depthColor(depth)} 0 4px, transparent 4px 8px)` : depthColor(depth)}
             />
             <span className="justify-self-end font-mono text-[13px] tnum">{num(count)}</span>
           </div>
         ))}
         <p className="text-[12px] text-muted-foreground">
-          Колено 0 — {num(byDepth[0])} seed-узлов. Колено 4 (штриховка): обход остановлен — исходящие переводы для этих узлов не выгружались.
+          Колено 0 — {num(byDepth[0])} seed-узлов. Колено {maxDepth} (штриховка): обход остановлен — исходящие переводы для этих узлов не выгружались.
         </p>
       </div>
     </Panel>
@@ -187,14 +185,14 @@ function TopPanel() {
   )
 }
 
-function Traps({ byDepth4 }: { byDepth4: number }) {
+function Traps({ lastHop, maxDepth }: { lastHop: number; maxDepth: number }) {
   const traps: { title: string; text: ReactNode }[] = [
     {
       title: 'нет исходящих ≠ деньги осели',
       text: (
         <>
-          {num(byDepth4)} узлов 4-го колена обрезаны обходом — у них нет исходящих переводов просто потому, что обход туда не дошёл. А вот стоки на
-          коленах 1–3 без исходящих — настоящие: там переводы выгружались и их действительно нет.
+          {num(lastHop)} узлов колена {maxDepth} обрезаны обходом — у них нет исходящих переводов просто потому, что обход туда не дошёл. А вот стоки на
+          коленах 1–{maxDepth - 1} без исходящих — настоящие: там переводы выгружались и их действительно нет.
         </>
       ),
     },

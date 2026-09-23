@@ -1,8 +1,8 @@
 import { Hono } from "hono";
-import { edges, nodes } from "../data/load";
-import { results } from "../data/results";
+import { current } from "../data/store";
 
 export default new Hono().get("/:gid", (c) => {
+  const { nodes, edges, results } = current();
   const gid = c.req.param("gid");
   const node = nodes.find((n) => n.gid === gid);
   if (!node) return c.json({ error: `unknown gid ${gid}` }, 404);

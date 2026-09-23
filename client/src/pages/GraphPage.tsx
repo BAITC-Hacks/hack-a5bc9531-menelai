@@ -45,6 +45,7 @@ function buildModel(g: Graph): Model {
       .sort((a, b) => b[1] - a[1])
       .slice(0, 8)
       .map(([id, n]) => ({ id, n })),
+    maxDepth: g.nodes.reduce((m, n) => Math.max(m, n.depth), 0),
   }
 }
 
@@ -291,7 +292,7 @@ function NodeCard({ model, i, onPick, onClose }: { model: Model; i: number; onPi
 
   const warnings = [
     n.isSeed && 'seed: входящие занижены устройством выгрузки — граф строился от seed наружу, соотношение выход/вход некорректно.',
-    n.depth >= 4 && n.outDeg === 0 && '4-е колено: исходящие не собирались, обход оборван — «нет исходящих» здесь ничего не значит.',
+    n.depth === model.maxDepth && n.outDeg === 0 && `Колено ${model.maxDepth}: исходящие не собирались, обход оборван — «нет исходящих» здесь ничего не значит.`,
   ].filter(Boolean) as string[]
 
   return (

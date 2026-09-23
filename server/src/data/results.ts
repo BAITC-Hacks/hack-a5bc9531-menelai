@@ -1,10 +1,7 @@
 import { existsSync, readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { forceLink, forceManyBody, forceSimulation, forceX, forceY } from "d3-force";
-import { edges, nodes } from "./load";
-
-// Pipeline output (pipeline/run.py → out/). The server only displays it, never recomputes roles.
-export const outDir = process.env.OUT_DIR ?? resolve(import.meta.dir, "../../../out");
+import type { Edge, Node } from "./types";
 
 export type Link = { gid: string; sum_kzt: number; n_tx: number };
 export type Metrics = {
@@ -20,6 +17,9 @@ export type Meta = {
   thresholds: Record<string, number>;
   role_weight: Record<string, number>;
   role_counts: Record<string, number>;
+  max_depth?: number;
+  min_tx_kzt?: number;
+  period?: [string, string];
   [k: string]: unknown;
 };
 
@@ -43,7 +43,7 @@ function parseCsv(text: string): Record<string, string>[] {
   return body.map((r) => Object.fromEntries(head.map((h, i) => [h, r[i] ?? ""])));
 }
 
-function loadResults() {
+export function loadResults(outDir: string) {
   const files = ["node_metrics.json", "clusters.csv", "top_nodes.csv"].map((f) => resolve(outDir, f));
   const missing = files.filter((f) => !existsSync(f));
   if (missing.length) {
@@ -69,11 +69,11 @@ function loadResults() {
   return { metrics: metrics as Record<string, Metrics>, meta: _meta, clusters, top };
 }
 
-export const results = loadResults();
+export type Results = NonNullable<ReturnType<typeof loadResults>>;
 
-// Force layout computed once at startup; d3-force is deterministic (fixed LCG), so positions are stable.
+// Force layout computed once per dataset load; d3-force is deterministic (fixed LCG), so positions are stable.
 // ponytail: ~1 s for 2 248 nodes; at ~1M nodes precompute offline (e.g. in the pipeline) instead.
-function layout(): Record<string, [number, number]> {
+export function layout(nodes: Node[], edges: Edge[]): Record<string, [number, number]> {
   const sim = nodes.map((n) => ({ gid: n.gid })) as { gid: string; x?: number; y?: number }[];
   const links = edges.map((e) => ({ source: e.src, target: e.dst }));
   forceSimulation(sim)
@@ -85,5 +85,3 @@ function layout(): Record<string, [number, number]> {
     .tick(320);
   return Object.fromEntries(sim.map((n) => [n.gid, [Math.round(n.x! * 10) / 10, Math.round(n.y! * 10) / 10]]));
 }
-
-export const positions = layout();

@@ -3,9 +3,7 @@ import { ROLE } from '@/lib/roles'
 import { api } from '@/lib/api'
 import { dec, kzt, num } from '@/lib/format'
 import { useApi } from '@/lib/use-api'
-
-// same hop colors as the network screen's «Колено» mode
-const DEPTH_COLOR = ['#e66767', '#eda100', '#1baf7a', '#3987e5', '#9085e9']
+import { depthColor } from '@/lib/depth'
 
 export default function AnomaliesPage() {
   const { data, error, reload } = useApi(api.anomalies)
@@ -45,7 +43,7 @@ export default function AnomaliesPage() {
                   </td>
                   <td className="py-2 pr-3">
                     <span className="inline-flex items-center gap-1.5 font-mono text-[12px] tnum text-ink-2">
-                      <span aria-hidden className="inline-block size-2 rounded-full" style={{ background: DEPTH_COLOR[p.depth] }} />
+                      <span aria-hidden className="inline-block size-2 rounded-full" style={{ background: depthColor(p.depth) }} />
                       {p.depth}
                     </span>
                   </td>

@@ -4,6 +4,7 @@ import { useEffect, useImperativeHandle, useRef, type Ref } from 'react'
 import { ROLE } from '@/lib/roles'
 import { ROLES, type Edge, type LaidOutNode, type Role } from '@/lib/api'
 import { dec, gidTail, kztShort, num } from '@/lib/format'
+import { depthColor } from '@/lib/depth'
 
 export type ColorBy = 'role' | 'depth' | 'cluster'
 
@@ -25,6 +26,8 @@ export type Model = {
   labels: number[]
   /** 8 largest clusters by node count, largest first */
   topClusters: { id: number; n: number }[]
+  /** last crawl hop: nodes there were not expanded */
+  maxDepth: number
 }
 
 export type CanvasHandle = {
@@ -45,7 +48,6 @@ type Props = {
   ref?: Ref<CanvasHandle>
 }
 
-const DEPTH = ['#e66767', '#eda100', '#1baf7a', '#3987e5', '#9085e9']
 const CAT = ['#3987e5', '#d95926', '#199e70', '#c98500', '#d55181', '#2fa52f', '#9085e9', '#e66767']
 const OTHER = '#3b4452'
 const IN_BLUE = '#78beff'
@@ -266,11 +268,11 @@ export default function NetworkCanvas(props: Props) {
           P.colorBy === 'role'
             ? C.role[M.role[i]]
             : P.colorBy === 'depth'
-              ? DEPTH[Math.min(4, n.depth)]
+              ? depthColor(n.depth)
               : n.cluster != null && clusterColor.has(n.cluster) ? clusterColor.get(n.cluster)! : OTHER
         ctx.beginPath()
-        ctx.arc(x, y, P.colorBy === 'depth' && n.depth >= 4 ? Math.max(1.6, r) : r, 0, 6.283)
-        if (P.colorBy === 'depth' && n.depth >= 4) { ctx.strokeStyle = c; ctx.lineWidth = 1.1; ctx.stroke() }
+        ctx.arc(x, y, P.colorBy === 'depth' && n.depth === M.maxDepth ? Math.max(1.6, r) : r, 0, 6.283)
+        if (P.colorBy === 'depth' && n.depth === M.maxDepth) { ctx.strokeStyle = c; ctx.lineWidth = 1.1; ctx.stroke() }
         else { ctx.fillStyle = c; ctx.fill() }
         if (n.isSeed) {
           ctx.strokeStyle = C.fg; ctx.lineWidth = 1
@@ -413,11 +415,11 @@ export default function NetworkCanvas(props: Props) {
           ))}
         {colorBy === 'depth' && (
           <>
-            <div className={row}><span className={sw} style={{ background: DEPTH[0] }} />колено 0 — seed</div>
-            {[1, 2, 3].map((d) => (
-              <div key={d} className={row}><span className={sw} style={{ background: DEPTH[d] }} />колено {d}</div>
+            <div className={row}><span className={sw} style={{ background: depthColor(0) }} />колено 0 — seed</div>
+            {Array.from({ length: Math.max(0, model.maxDepth - 1) }, (_, k) => k + 1).map((d) => (
+              <div key={d} className={row}><span className={sw} style={{ background: depthColor(d) }} />колено {d}</div>
             ))}
-            <div className={row}><span className={`${sw} border-[1.5px]`} style={{ borderColor: DEPTH[4] }} />колено 4 — обход остановлен</div>
+            <div className={row}><span className={`${sw} border-[1.5px]`} style={{ borderColor: depthColor(model.maxDepth) }} />колено {model.maxDepth} — обход остановлен</div>
           </>
         )}
         {colorBy === 'cluster' && (

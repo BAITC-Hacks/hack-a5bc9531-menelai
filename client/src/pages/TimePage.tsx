@@ -1,12 +1,15 @@
 import { Eyebrow, GidLink, HypTag, LoadState, PageHeader, Panel, RoleChip } from '@/components/kit'
 import { api } from '@/lib/api'
-import { dayMonth, dec, kzt, kztShort, num, pct } from '@/lib/format'
+import { dayMonth, dec, kzt, kztShort, num, pct, periodLabel } from '@/lib/format'
 import { useApi } from '@/lib/use-api'
 
 const WEEKDAYS = ['Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб', 'Вс']
-// 1 июля 2026 — среда, третий столбец сетки (Пн=0)
-const JULY_START_COL = 2
-const JULY_DAYS = 31
+/** Every calendar day from the first to the last date in the export (UTC). */
+const dayRange = (from: string, to: string) => {
+  const out: string[] = []
+  for (let t = Date.parse(from); t <= Date.parse(to); t += 86_400_000) out.push(new Date(t).toISOString().slice(0, 10))
+  return out
+}
 
 export default function TimePage() {
   const { data, error, reload } = useApi(api.time)
@@ -17,12 +20,15 @@ export default function TimePage() {
   const quintile = new Map(nSorted.map((d, i) => [d.date, Math.min(4, Math.floor((i / nSorted.length) * 5))]))
   const peak = [...data.daily].sort((a, b) => b.n - a.n)[0]
   const maxKzt = Math.max(...data.daily.map((d) => d.kzt))
+  const days = data.daily.length ? dayRange(data.daily[0].date, data.daily[data.daily.length - 1].date) : []
+  // grid starts on Monday (column 0)
+  const startCol = days.length ? (new Date(days[0]).getUTCDay() + 6) % 7 : 0
 
   return (
     <>
       <PageHeader
         eyebrow="анализ · время"
-        title="Июль по дням"
+        title="Переводы по дням"
         lede={
           <>
             Временные паттерны: синхронные переводы — {data.syncPayers}+ плательщиков одному получателю за день, сквозной транзит — деньги уходят
@@ -31,7 +37,7 @@ export default function TimePage() {
         }
       />
 
-      <Panel eyebrow="календарь · июль 2026" title="Активность по дням">
+      <Panel eyebrow={`календарь · ${days.length ? periodLabel([days[0], days[days.length - 1]]) : '—'}`} title="Активность по дням">
         <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_20rem]">
           <div>
             <div className="mb-2 grid grid-cols-7 gap-1.5">
@@ -42,9 +48,8 @@ export default function TimePage() {
               ))}
             </div>
             <div className="grid grid-cols-7 gap-1.5">
-              {Array.from({ length: JULY_START_COL }, (_, i) => <span key={`pad-${i}`} aria-hidden />)}
-              {Array.from({ length: JULY_DAYS }, (_, i) => {
-                const date = `2026-07-${String(i + 1).padStart(2, '0')}`
+              {Array.from({ length: startCol }, (_, i) => <span key={`pad-${i}`} aria-hidden />)}
+              {days.map((date) => {
                 const d = byDate.get(date)
                 const q = quintile.get(date) ?? 0
                 return (
@@ -54,7 +59,7 @@ export default function TimePage() {
                     className="grid aspect-square min-w-0 place-content-center rounded-md border text-center"
                     style={{ background: `color-mix(in srgb, var(--gold) ${8 + q * 14}%, var(--panel-2))` }}
                   >
-                    <span className="font-mono text-[12px] tnum">{i + 1}</span>
+                    <span className="font-mono text-[12px] tnum">{Number(date.slice(8, 10))}</span>
                     {d && <span className="font-mono text-[10px] tnum text-ink-2">{num(d.n)}</span>}
                   </div>
                 )
@@ -68,7 +73,7 @@ export default function TimePage() {
 
           <div>
             <Eyebrow>сумма переводов по дням</Eyebrow>
-            <svg viewBox="0 0 310 90" className="mt-2 w-full" role="img" aria-label="Сумма переводов по дням июля">
+            <svg viewBox={`0 0 ${Math.max(10, data.daily.length * 10)} 90`} className="mt-2 w-full" role="img" aria-label="Сумма переводов по дням">
               {data.daily.map((d, i) => {
                 const h = maxKzt > 0 ? (d.kzt / maxKzt) * 78 : 0
                 return (

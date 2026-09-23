@@ -1,4 +1,4 @@
 import { Hono } from "hono";
-import { transactions } from "../data/load";
+import { current } from "../data/store";
 
-export default new Hono().get("/", (c) => c.json(transactions));
+export default new Hono().get("/", (c) => c.json(current().transactions));

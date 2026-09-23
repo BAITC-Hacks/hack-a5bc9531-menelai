@@ -102,17 +102,51 @@ def dec_thr(x, thr, nd=2) -> str:
 
 # ------------------------------------------------------------------ load
 
+class InputError(ValueError):
+    """Входные данные не по схеме task/README.md — сообщение показывается пользователю как есть."""
+
+
+def _check(cond, msg):
+    if not cond:
+        raise InputError(msg)
+
+
+COLS = {"nodes": ["gid", "depth", "is_seed"], "edges": ["src", "dst", "sum_kzt", "n_tx", "depth"],
+        "transactions": ["src", "dst", "date", "sum_kzt"]}
+
+
+def read_table(data_dir: Path, name: str) -> pd.DataFrame:
+    """<name>.parquet по схеме task/README.md. gid-колонки приводятся к int64 — они больше 2⁵³."""
+    pq = data_dir / f"{name}.parquet"
+    ids = [c for c in ("gid", "src", "dst") if c in COLS[name]]
+    _check(pq.exists(), f"нет файла {name}.parquet в {data_dir}")
+    df = pd.read_parquet(pq)
+    missing = [c for c in COLS[name] if c not in df.columns]
+    _check(not missing, f"{name}: нет колонок {missing}; нужны {COLS[name]}")
+    df = df[COLS[name]].copy()
+    for c in ids:
+        _check(df[c].notna().all(), f"{name}: пустые значения в {c}")
+        df[c] = df[c].astype("int64")
+    return df
+
+
 def load(data_dir: Path):
-    edges = pd.read_parquet(data_dir / "edges.parquet")
-    nodes = pd.read_parquet(data_dir / "nodes.parquet")
-    tx = pd.read_parquet(data_dir / "transactions.parquet")
+    edges = read_table(data_dir, "edges")
+    nodes = read_table(data_dir, "nodes")
+    tx = read_table(data_dir, "transactions")
     tx["date"] = pd.to_datetime(tx["date"])
-    assert nodes.gid.dtype == np.int64 and edges.src.dtype == np.int64 and edges.dst.dtype == np.int64
-    assert nodes.gid.nunique() == len(nodes) == 2248
+    if nodes.is_seed.dtype != bool:
+        nodes["is_seed"] = nodes.is_seed.astype(str).str.lower().isin(["true", "1", "t", "yes"])
+    nodes["depth"] = nodes.depth.astype(int)
+    _check(len(nodes) > 0 and nodes.gid.nunique() == len(nodes), "nodes: gid должны быть уникальны")
+    _check(nodes.is_seed.any(), "nodes: нет ни одного seed (is_seed = true)")
+    known = set(nodes.gid)
+    _check(set(edges.src) <= known and set(edges.dst) <= known, "edges: есть src/dst, которых нет в nodes")
     # edges == Σ transactions (как в starter.sanity_check)
     agg = tx.groupby(["src", "dst"]).agg(s=("sum_kzt", "sum"), c=("sum_kzt", "size")).reset_index()
     m = edges.merge(agg, on=["src", "dst"], how="outer", indicator=True)
-    assert (m._merge == "both").all() and ((m.sum_kzt - m.s).abs() < 0.5).all(), "edges ≠ transactions"
+    _check((m._merge == "both").all() and ((m.sum_kzt - m.s).abs() < 0.5).all(),
+           "edges ≠ Σ transactions: суммы по парам src→dst в edges и transactions не совпадают")
     return edges, nodes, tx
 
 
@@ -126,8 +160,9 @@ def build_graph(edges, nodes) -> nx.DiGraph:
 
 # ------------------------------------------------------------------ features
 
-def features(G, edges, nodes) -> pd.DataFrame:
+def features(G, edges, nodes) -> tuple[pd.DataFrame, int]:
     f = nodes.set_index("gid")[["depth", "is_seed"]].copy()
+    max_depth = int(f.depth.max())                              # последнее колено обхода: там out_deg = 0 — артефакт
     f["is_seed"] = f.is_seed.astype(bool)
     f["in_deg"] = edges.groupby("dst").src.nunique().reindex(f.index, fill_value=0).astype(int)
     f["out_deg"] = edges.groupby("src").dst.nunique().reindex(f.index, fill_value=0).astype(int)
@@ -137,8 +172,8 @@ def features(G, edges, nodes) -> pd.DataFrame:
     f["out_tx"] = edges.groupby("src").n_tx.sum().reindex(f.index, fill_value=0).astype(int)
     # NaN, если входа нет (у seed вход занижен выгрузкой — pass_through у них недостоверен)
     f["pass_through"] = np.where(f.in_kzt > 0, f.out_kzt / f.in_kzt.replace(0, np.nan), np.nan)
-    # ЛОВУШКА: 4-е колено без исходящих — обход оборвался, это не «сток»
-    f["truncated"] = (f.depth == 4) & (f.out_deg == 0)
+    # ЛОВУШКА: последнее колено без исходящих — обход оборвался, это не «сток»
+    f["truncated"] = (f.depth == max_depth) & (f.out_deg == 0)
     f["isolated"] = (f.in_deg + f.out_deg) == 0
     f["no_data"] = f.truncated | (f.is_seed & f.isolated)       # правило 0: роль по данным не определить
     # доля крупнейшего плательщика во входе (NaN, если входа нет)
@@ -157,7 +192,7 @@ def features(G, edges, nodes) -> pd.DataFrame:
             if v != s:
                 up[v] += 1
     f["n_seed_upstream"] = pd.Series(up).reindex(f.index, fill_value=0).astype(int)
-    return f
+    return f, max_depth
 
 
 # ------------------------------------------------------------------ seed_share (логика Даурена, «Пункт 4»)
@@ -385,8 +420,8 @@ def _evidence(r, T) -> str:
     sd = "сам seed" if r.is_seed else f"seed-денег {pct_str(r.seed_share)}"   # у seed доля = 1 по построению
     if r.rule_hit == "nodata":
         if r.isolated:
-            return "нет данных: seed без переводов ≥5 000 ₸ в июле; 0 вход., 0 исход."
-        return (f"нет данных: колено 4, данные обрезаны: запросить исходящие переводы; "
+            return "нет данных: seed без переводов в выгрузке; 0 вход., 0 исход."
+        return (f"нет данных: колено {T['max_depth']}, данные обрезаны: запросить исходящие переводы; "
                 f"вход {kzt(r.in_kzt)} от {r.in_deg} плат., seed-денег {pct_str(r.seed_share)}")
     if r.role == "coordinator":
         link = "цикл" if r.in_cycle else ""
@@ -419,8 +454,8 @@ def _evidence(r, T) -> str:
 def why(r, sync_days, T) -> str:
     if r.no_data:
         parts = [("Нет данных для роли (правило 0, peripheral): seed без переводов в выгрузке — запросить операции клиента."
-                  if r.isolated else "Нет данных для роли (правило 0, peripheral): колено 4, данные обрезаны: "
-                  "запросить исходящие переводы.")]
+                  if r.isolated else f"Нет данных для роли (правило 0, peripheral): колено {T['max_depth']}, "
+                  "данные обрезаны: запросить исходящие переводы.")]
     else:
         parts = [f"Гипотеза: признаки {ROLE_RU[r.role]} ({r.role}, уверенность {dec(r.role_score)})."]
     parts.append(f"Получил {kzt(r.in_kzt)} от {r.in_deg} плат. ({r.in_tx} пер.), отдал {kzt(r.out_kzt)} "
@@ -541,7 +576,7 @@ def outputs(f, G, edges, tx, ctab, per_cycles, sync_days, out_dir: Path, meta, T
     out_dir.mkdir(parents=True, exist_ok=True)
     f = f.sort_values(["priority_score"], ascending=False, kind="mergesort")
     f = f.reset_index().sort_values(["priority_score", "gid"], ascending=[False, True], kind="mergesort")
-    assert f.gid.dtype == np.int64 and f.gid.nunique() == 2248
+    assert f.gid.dtype == np.int64 and f.gid.nunique() == len(f)
 
     # role_rule: id сработавшего правила (контракт main); правило 0 делится на два случая
     f["role_rule"] = np.where(f.rule_hit == "nodata",
@@ -579,25 +614,25 @@ def outputs(f, G, edges, tx, ctab, per_cycles, sync_days, out_dir: Path, meta, T
 
 # ------------------------------------------------------------------ checks
 
-def checks(nr, top, ctab, nmc, emc, out_dir: Path):
-    assert len(nr) == 2248 and nr.gid.nunique() == 2248 and nr.gid.dtype == np.int64
+def checks(nr, top, ctab, nmc, emc, out_dir: Path, n_nodes: int, n_edges: int):
+    assert len(nr) == n_nodes and nr.gid.nunique() == n_nodes and nr.gid.dtype == np.int64
     assert nr.role.isin(ROLES).all()
     assert nr.role_score.between(0, 1).all() and nr.priority_score.between(0, 1).all()
     ev = nr.evidence.astype(str)
     assert (ev.str.len() > 0).all() and (ev.str.len() <= 200).all(), ev[ev.str.len() > 200].head()
     assert nr.cluster_id.notna().all() and (nr.cluster_id >= 0).all()
     iso_seed = nmc[nmc.is_seed & (nmc.in_deg + nmc.out_deg == 0)]
-    assert len(iso_seed) == 19 and iso_seed.cluster_id.notna().all() and (iso_seed.seed_share == 0).all()
+    assert iso_seed.cluster_id.notna().all() and (iso_seed.seed_share == 0).all()
     assert len(top) >= 20 and list(top["rank"]) == list(range(1, len(top) + 1))
     assert set(nr.cluster_id) == set(ctab.cluster_id) and ctab.cluster_id.is_unique
     assert (ctab.hypothesis.str.len() > 0).all()
     # контракт main (docs/PIPELINE_CONTRACT.md)
     assert list(nr.columns) == ["gid", "role", "role_score", "cluster_id", "priority_score", "evidence"]
-    assert nmc.role_rule.notna().all() and (nmc.role_rule == "no_data_truncated").sum() == 444
-    assert (nmc.role_rule == "no_data_isolated_seed").sum() == 19
-    assert len(nmc) == 2248 and list(nmc.columns) == NODE_METRICS_COLS and set(nmc.gid) == set(nr.gid)
-    assert len(emc) == 3119 and list(emc.columns) == EDGE_METRICS_COLS and emc.first_date.notna().all()
-    assert int(nmc.truncated_by_depth.sum()) == 444 and int(nmc.no_edges.sum()) == 19
+    assert nmc.role_rule.notna().all()
+    assert (nmc.role_rule == "no_data_truncated").sum() == int(nmc.truncated_by_depth.sum())
+    assert (nmc.role_rule == "no_data_isolated_seed").sum() == len(iso_seed) == int((nmc.no_edges & nmc.is_seed).sum())
+    assert len(nmc) == n_nodes and list(nmc.columns) == NODE_METRICS_COLS and set(nmc.gid) == set(nr.gid)
+    assert len(emc) == n_edges and list(emc.columns) == EDGE_METRICS_COLS and emc.first_date.notna().all()
     for fn in ["nodes_roles.csv", "node_metrics.csv", "edge_metrics.csv"]:
         head = (out_dir / fn).read_text().splitlines()[1:]
         assert not any(",True," in l or ",False," in l or l.endswith((",True", ",False")) for l in head), fn
@@ -608,7 +643,7 @@ def checks(nr, top, ctab, nmc, emc, out_dir: Path):
     # JSON: ключи — все gid строками + _meta; все gid внутри (top_in/top_out/cycles) существуют в nodes
     nm = json.loads((out_dir / "node_metrics.json").read_text())
     gids = set(nr.gid.astype(str))
-    assert len(nm) == 2249 and set(nm) - {"_meta"} == gids
+    assert len(nm) == n_nodes + 1 and set(nm) - {"_meta"} == gids
     for d in (v for k, v in nm.items() if k != "_meta"):
         ref = [x["gid"] for x in d["top_in"] + d["top_out"]] + [g for c in d["cycles"] for g in c]
         assert set(ref) <= gids, ref
@@ -634,12 +669,13 @@ def compute(edges, nodes, tx, T_base=T):
     """features → seed_share → temporal → cycles → пороги → роли на произвольных DataFrame (без чтения parquet).
     tx["date"] должен быть datetime. Возвращает f, разрешённые пороги Tr, sync_days, per_cycles, n_cycles, G."""
     G = build_graph(edges, nodes)
-    f = features(G, edges, nodes)
+    f, max_depth = features(G, edges, nodes)
     seed_share(f, edges)
     sync_days = temporal(f, tx)
     per_cycles, n_cycles = cycles(G, f)
     Tr = {**T_base, **resolve_thresholds(f)}
     Tr["coord_betw_pct"] = Tr["coord_betw_thr_pct"]      # ключ v1 в _meta.thresholds — для совместимости
+    Tr["max_depth"] = max_depth
     roles(f, Tr)
     return f, Tr, sync_days, per_cycles, n_cycles, G
 
@@ -651,7 +687,10 @@ def main():
     a = ap.parse_args()
     t0 = time.perf_counter()
 
-    edges, nodes, tx = load(Path(a.data))
+    try:
+        edges, nodes, tx = load(Path(a.data))
+    except InputError as e:
+        raise SystemExit(f"ОШИБКА ВХОДНЫХ ДАННЫХ: {e}")
     f, Tr, sync_days, per_cycles, n_cycles, G = compute(edges, nodes, tx)
     comms = clusters(G, f)
     priority(f)
@@ -667,9 +706,13 @@ def main():
         n_truncated=int(f.truncated.sum()), n_cycles_le5=n_cycles, n_clusters=len(comms),
         n_clusters_multi=int(sum(len(c) > 1 for c in comms)),
         turnover_kzt=round(float(edges.sum_kzt.sum())),
+        # описание выгрузки — интерфейс берёт период и число колен отсюда, а не из констант
+        max_depth=Tr["max_depth"], n_by_depth=[int((f.depth == d).sum()) for d in range(Tr["max_depth"] + 1)],
+        period=[tx.date.min().strftime("%Y-%m-%d"), tx.date.max().strftime("%Y-%m-%d")] if len(tx) else None,
+        min_tx_kzt=round(float(tx.sum_kzt.min())) if len(tx) else None,
     )
     nr, top, nmc, emc = outputs(f, G, edges, tx, ctab, per_cycles, sync_days, Path(a.out), meta, Tr)
-    checks(nr, top, ctab, nmc, emc, Path(a.out))
+    checks(nr, top, ctab, nmc, emc, Path(a.out), len(nodes), len(edges))
     review(nr, top)
     print("\nПороги:", {k: v for k, v in meta["thresholds"].items() if k in PCT_THRESHOLDS})
     print(f"\nВыгрузки: {Path(a.out).resolve()}  | время {time.perf_counter() - t0:.1f} с")

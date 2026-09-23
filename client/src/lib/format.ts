@@ -19,3 +19,10 @@ export const pct = (x: number | null | undefined) =>
 export const gidTail = (gid: string) => `…${gid.slice(-10)}`
 /** "2026-07-13" → "13.07" */
 export const dayMonth = (iso: string) => `${iso.slice(8, 10)}.${iso.slice(5, 7)}`
+/** ["2026-07-01","2026-07-31"] → "01.07–31.07.2026" */
+export const periodLabel = (p: [string, string]) => `${dayMonth(p[0])}–${dayMonth(p[1])}.${p[1].slice(0, 4)}`
+/** Russian plural: plural(4, 'колено', 'колена', 'колен') → "колена" */
+export const plural = (n: number, one: string, few: string, many: string) => {
+  const d = n % 10, h = n % 100
+  return d === 1 && h !== 11 ? one : d >= 2 && d <= 4 && (h < 12 || h > 14) ? few : many
+}

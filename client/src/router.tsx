@@ -15,6 +15,7 @@ import RoutesPage from '@/pages/RoutesPage'
 import RulesPage from '@/pages/RulesPage'
 import TimePage from '@/pages/TimePage'
 import TopPage from '@/pages/TopPage'
+import UploadPage from '@/pages/UploadPage'
 
 const ANALYSIS = [
   { to: '/analysis/routes', label: 'Маршруты и циклы' },
@@ -51,6 +52,7 @@ export const router = createBrowserRouter([
         ],
       },
       { path: 'assistant', Component: AssistantPage },
+      { path: 'upload', Component: UploadPage },
       {
         path: 'method',
         element: <SectionLayout label="метод" tabs={METHOD} />,

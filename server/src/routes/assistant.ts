@@ -1,10 +1,11 @@
 import { Hono } from "hono";
+import { current } from "../data/store";
 import { runTool, toolSchemas } from "../data/tools";
 
 // External LLM (OpenAI Responses API) is used only here: it picks tools and phrases the answer.
 // Roles, priorities and every number come from the deterministic tools. Key: OPENAI_API_KEY (never logged).
 const MODEL = process.env.OPENAI_MODEL ?? "gpt-5.6-sol";
-const SYSTEM = `Ты — ассистент AML-аналитика в инструменте «Граф денег» (обезличенная выгрузка переводов за июль 2026).
+const system = (period: [string, string] | null) => `Ты — ассистент AML-аналитика в инструменте «Граф денег» (обезличенная выгрузка переводов${period ? ` за ${period[0]} — ${period[1]}` : ""}).
 Отвечай по-русски, кратко, списком фактов. Любое число и любой gid бери только из результатов инструментов; если данных нет — так и скажи.
 Роли и приоритет уже посчитаны пайплайном, не переоценивай их. Все выводы — гипотезы для проверки («признаки консолидации»), никогда не утверждай виновность.
 Пиши gid полностью (18 цифр), суммы — в тенге с пробелами между разрядами.`;
@@ -15,7 +16,7 @@ export default new Hono()
   .get("/status", (c) => c.json({ llm: Boolean(process.env.OPENAI_API_KEY), model: MODEL, tools: toolSchemas.map((t) => t.name) }))
   .post("/tools/:name", async (c) => {
     try {
-      return c.json(runTool(c.req.param("name"), await c.req.json().catch(() => ({}))));
+      return c.json(runTool(current().tools, c.req.param("name"), await c.req.json().catch(() => ({}))));
     } catch (e) {
       return c.json({ error: (e as Error).message }, 400);
     }
@@ -26,7 +27,8 @@ export default new Hono()
     const { question } = await c.req.json<{ question?: string }>().catch(() => ({ question: undefined }));
     if (!question?.trim()) return c.json({ error: "пустой вопрос" }, 400);
 
-    const input: unknown[] = [{ role: "developer", content: SYSTEM }, { role: "user", content: question.slice(0, 2000) }];
+    const { tools, period } = current(); // pinned for the whole conversation even if the dataset is switched mid-way
+    const input: unknown[] = [{ role: "developer", content: system(period) }, { role: "user", content: question.slice(0, 2000) }];
     const trace: Step[] = [];
     for (let round = 0; round < 8; round++) {
       const res = await fetch("https://api.openai.com/v1/responses", {
@@ -46,7 +48,7 @@ export default new Hono()
         let output: string, ok = true, args: unknown = {};
         try {
           args = JSON.parse(call.arguments || "{}");
-          output = JSON.stringify(runTool(call.name!, args));
+          output = JSON.stringify(runTool(tools, call.name!, args));
         } catch (e) {
           ok = false;
           output = JSON.stringify({ error: (e as Error).message });

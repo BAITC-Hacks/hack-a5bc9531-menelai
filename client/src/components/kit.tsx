@@ -324,9 +324,15 @@ export function LoadState({ error, reload, label = 'Загрузка…' }: { er
           {error}. Проверьте, что сервер запущен (<code className="font-mono">bun run dev</code>) и пайплайн создал папку{' '}
           <code className="font-mono">out/</code>.
         </p>
-        <Button variant="outline" onClick={reload}>
-          Повторить
-        </Button>
+        <p className="text-sm text-ink-2">Если выгрузка ещё не загружена — загрузите три файла .parquet (nodes, edges, transactions), роли посчитаются автоматически.</p>
+        <div className="flex flex-wrap gap-2">
+          <Button nativeButton={false} render={<Link to="/upload" />}>
+            Загрузить выгрузку
+          </Button>
+          <Button variant="outline" onClick={reload}>
+            Повторить
+          </Button>
+        </div>
       </div>
     </Panel>
   )

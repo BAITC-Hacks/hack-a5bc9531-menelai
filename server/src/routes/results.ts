@@ -1,6 +1,6 @@
 import { Hono } from "hono";
 import { resolve } from "node:path";
-import { outDir, results } from "../data/results";
+import { current } from "../data/store";
 
 const NO_RESULTS = { error: "нет выгрузки пайплайна: запустите pipeline/run.py (см. README)" };
 const CSV = ["nodes_roles.csv", "clusters.csv", "top_nodes.csv"];
@@ -8,6 +8,7 @@ const CSV = ["nodes_roles.csv", "clusters.csv", "top_nodes.csv"];
 // Pipeline outputs: top list, clusters, thresholds and the three CSV files as downloads.
 export default new Hono()
   .get("/top", (c) => {
+    const { results } = current();
     if (!results) return c.json(NO_RESULTS, 503);
     const { top, metrics } = results;
     return c.json(
@@ -18,6 +19,7 @@ export default new Hono()
     );
   })
   .get("/clusters", (c) => {
+    const { results } = current();
     if (!results) return c.json(NO_RESULTS, 503);
     const roles: Record<number, Record<string, number>> = {};
     for (const m of Object.values(results.metrics)) {
@@ -26,10 +28,14 @@ export default new Hono()
     }
     return c.json(results.clusters.map((cl) => ({ ...cl, roles: roles[cl.clusterId] ?? {} })));
   })
-  .get("/meta", (c) => (results ? c.json(results.meta) : c.json(NO_RESULTS, 503)))
+  .get("/meta", (c) => {
+    const { results } = current();
+    return results ? c.json(results.meta) : c.json(NO_RESULTS, 503);
+  })
   .get("/export/:file", (c) => {
     const file = c.req.param("file");
     if (!CSV.includes(file)) return c.json({ error: `unknown file ${file}` }, 404);
+    const { results, outDir } = current();
     if (!results) return c.json(NO_RESULTS, 503);
     return new Response(Bun.file(resolve(outDir, file)), {
       headers: { "Content-Type": "text/csv; charset=utf-8", "Content-Disposition": `attachment; filename="${file}"` },
