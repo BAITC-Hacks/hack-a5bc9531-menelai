@@ -1,8 +1,8 @@
 import { useEffect, useMemo, useRef, useState, type FormEvent } from 'react'
 import { Link, useLocation, useSearchParams } from 'react-router'
-import { SearchIcon, TriangleAlertIcon, XIcon } from 'lucide-react'
+import { MaximizeIcon, MinusIcon, PlusIcon, SearchIcon, TriangleAlertIcon, XIcon } from 'lucide-react'
 import NetworkCanvas, { type CanvasHandle, type ColorBy, type Model } from '@/components/NetworkCanvas'
-import { Eyebrow, HypTag, LoadState, PageHeader, PriorityBar, RoleChip, RoleDot, SeedTag } from '@/components/kit'
+import { Eyebrow, HypTag, LoadState, PriorityBar, RoleChip, RoleDot, SeedTag } from '@/components/kit'
 import { ROLE } from '@/lib/roles'
 import { Button } from '@/components/ui/button'
 import { api, ROLES, type Graph, type Role } from '@/lib/api'
@@ -67,22 +67,22 @@ function GraphView({ model }: { model: Model }) {
   const location = useLocation()
   const fromCanvas = (location.state as { fromCanvas?: boolean } | null)?.fromCanvas === true
   const canvas = useRef<CanvasHandle>(null)
+  const searchForm = useRef<HTMLFormElement>(null)
   const [colorBy, setColorBy] = useState<ColorBy>('role')
   const [flow, setFlow] = useState(true)
   const [roles, setRoles] = useState<Set<Role>>(() => new Set(ROLES))
   const [seedOnly, setSeedOnly] = useState(false)
-  const [term, setTerm] = useState('')
   const reduced = useMemo(() => matchMedia('(prefers-reduced-motion: reduce)').matches, [])
 
   // ?q= is a full gid or its tail (the header search sends tails here)
   const q = (params.get('q') ?? '').replace(/\D/g, '')
-  const sel = useMemo(() => {
-    if (!q) return null
+  const matches = useMemo(() => {
+    if (!q) return []
     const exact = model.byGid.get(q)
-    if (exact !== undefined) return exact
-    const i = model.nodes.findIndex((n) => n.gid.endsWith(q))
-    return i < 0 ? null : i
+    if (exact !== undefined) return [exact]
+    return model.nodes.flatMap((n, i) => n.gid.endsWith(q) ? [i] : [])
   }, [model, q])
+  const sel = matches.length === 1 ? matches[0] : null
 
   const clusterRaw = params.get('cluster')
   const clusterId = clusterRaw && /^\d+$/.test(clusterRaw) ? Number(clusterRaw) : null
@@ -98,6 +98,12 @@ function GraphView({ model }: { model: Model }) {
     })
     return a
   }, [model, roles, seedOnly, clusterId])
+
+  const activeCount = active.reduce((count, on) => count + on, 0)
+  const highlightedCount = useMemo(() => {
+    if (sel == null) return activeCount
+    return new Set([sel, ...model.out[sel].map((e) => model.dst[e]), ...model.inn[sel].map((e) => model.src[e])]).size
+  }, [model, sel, activeCount])
 
   const roleCount = useMemo(() => {
     const c = Object.fromEntries(ROLES.map((r) => [r, 0])) as Record<Role, number>
@@ -126,9 +132,9 @@ function GraphView({ model }: { model: Model }) {
   const select = (i: number | null, viaCanvas = false) =>
     update((p) => (i == null ? p.delete('q') : p.set('q', model.nodes[i].gid)), viaCanvas ? { fromCanvas: true } : null)
 
-  const onSearch = (e: FormEvent) => {
+  const onSearch = (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault()
-    const t = term.replace(/\D/g, '')
+    const t = String(new FormData(e.currentTarget).get('gid') ?? '').replace(/\D/g, '')
     if (t) update((p) => p.set('q', t), null)
   }
   const resetView = () => {
@@ -136,7 +142,9 @@ function GraphView({ model }: { model: Model }) {
       p.delete('q')
       p.delete('cluster')
     })
-    setTerm('')
+    searchForm.current?.reset()
+    setRoles(new Set(ROLES))
+    setSeedOnly(false)
     canvas.current?.fit()
   }
   const toggleRole = (r: Role) =>
@@ -154,16 +162,20 @@ function GraphView({ model }: { model: Model }) {
 
   return (
     <>
-      <PageHeader
-        eyebrow={`схема сети · ${num(model.nodes.length)} узлов · ${num(model.edges.length)} связей`}
-        title="Схема сети"
-        lede="Каждая точка — клиент, линия — переводы ≥ 5 000 ₸ от плательщика к получателю. Роли, кластеры и приоритет посчитаны пайплайном; выберите узел, чтобы увидеть его связи и основания роли."
-      />
+      <header className="flex flex-wrap items-end justify-between gap-x-6 gap-y-2">
+        <div className="grid gap-2">
+          <h1 className="font-heading text-[28px] leading-tight font-bold tracking-tight">Клиенты и связи</h1>
+          <p className="text-[15px] leading-relaxed text-ink-2">Найдите клиента и проследите входящие и исходящие переводы.</p>
+        </div>
+        <p className="font-mono text-xs text-muted-foreground tnum">
+          {num(model.nodes.length)} узлов · {num(model.edges.length)} связей
+        </p>
+      </header>
 
-      <section className="min-w-0 overflow-hidden rounded-xl border bg-card" aria-label="Схема сети">
-        <div className="flex flex-wrap items-center gap-x-4 gap-y-2 border-b px-4 py-2.5">
+      <section className="min-w-0 overflow-hidden rounded-[14px] border bg-card" aria-label="Схема сети">
+        <div className="flex flex-wrap items-center gap-x-4 gap-y-3 border-b px-4 py-3">
           <div className="flex items-center gap-2">
-            <Eyebrow>Раскраска</Eyebrow>
+            <Eyebrow>Цвет</Eyebrow>
             <div role="group" aria-label="Раскраска узлов" className="flex gap-0.5 rounded-lg border bg-background p-0.5">
               {COLOR_BY.map((c) => (
                 <button key={c.key} type="button" aria-pressed={colorBy === c.key} onClick={() => setColorBy(c.key)} className={seg(colorBy === c.key)}>
@@ -182,72 +194,104 @@ function GraphView({ model }: { model: Model }) {
           >
             Потоки денег
           </button>
-          <form onSubmit={onSearch} role="search" className="ml-auto flex items-center gap-2">
-            <label className="flex h-8 w-56 items-center gap-2 rounded-lg border border-input bg-background px-2.5 focus-within:border-gold/60">
+          <form ref={searchForm} onSubmit={onSearch} role="search" className="flex w-full min-w-0 items-center gap-2 sm:ml-auto sm:w-auto">
+            <label className="flex h-9 min-w-0 flex-1 items-center gap-2 rounded-lg border border-input bg-background px-2.5 focus-within:border-gold/60 sm:w-52">
               <SearchIcon className="size-4 shrink-0 text-muted-foreground" aria-hidden />
               <input
-                value={term}
-                onChange={(e) => setTerm(e.target.value)}
-                placeholder="gid или хвост"
+                key={q}
+                name="gid"
+                defaultValue={q}
+                placeholder="GID или последние цифры"
                 inputMode="numeric"
                 aria-label="Найти узел на схеме по gid или последним цифрам"
-                className="w-full bg-transparent font-mono text-[13px] outline-none placeholder:font-sans placeholder:text-muted-foreground"
+                className="min-w-0 w-full bg-transparent font-mono text-[13px] outline-none placeholder:font-sans placeholder:text-muted-foreground"
               />
             </label>
-            <Button type="button" variant="outline" onClick={resetView}>
-              Сброс вида
-            </Button>
+            <Button type="submit" className="h-9">Найти</Button>
           </form>
         </div>
 
-        {(clusterId != null || (q && sel == null)) && (
-          <div role="status" className="flex flex-wrap items-center gap-x-3 gap-y-1 border-b bg-panel-2/60 px-4 py-2 text-[13px] text-ink-2">
-            {q && sel == null && (
-              <span>
-                Узел <span className="font-mono">{q}</span> не найден в графе.
-              </span>
-            )}
-            {clusterId != null && (
-              <>
-                <span>
-                  {clusterNodes.length ? (
-                    <>
-                      Подсвечен кластер <span className="font-mono">#{clusterId}</span> ·{' '}
-                      <span className="font-mono tnum">{num(clusterNodes.length)}</span> узлов
-                    </>
-                  ) : (
-                    <>
-                      Кластер <span className="font-mono">#{clusterId}</span> не найден.
-                    </>
-                  )}
-                </span>
-                <Button variant="ghost" size="xs" onClick={() => update((p) => p.delete('cluster'))}>
-                  Снять подсветку
-                </Button>
-              </>
+        {q && matches.length !== 1 && (
+          <div className="grid gap-3 border-b bg-panel-2/50 px-4 py-3">
+            <p role="status" className="text-sm text-ink-2">
+              {matches.length === 0 ? (
+                <>Узел с GID или окончанием <span className="font-mono text-foreground">{q}</span> не найден. Проверьте введённые цифры.</>
+              ) : (
+                <>Совпадений: <span className="font-mono text-foreground tnum">{num(matches.length)}</span>. Выберите узел{matches.length > 8 ? ' из первых 8 результатов или уточните последние цифры GID' : ' или уточните GID'}.</>
+              )}
+            </p>
+            {matches.length > 1 && (
+              <ul className="grid gap-1.5 sm:grid-cols-2">
+                {matches.slice(0, 8).map((i) => (
+                  <li key={model.nodes[i].gid}>
+                    <button
+                      type="button"
+                      onClick={() => select(i)}
+                      className="flex w-full flex-wrap items-center gap-x-3 gap-y-1 rounded-lg border border-line-2 px-3 py-2 text-left text-xs hover:bg-panel-2 focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
+                    >
+                      <span className="font-mono text-foreground">{model.nodes[i].gid}</span>
+                      <span className="flex items-center gap-1.5 text-muted-foreground"><RoleDot role={model.role[i]} />{ROLE[model.role[i]].label}</span>
+                    </button>
+                  </li>
+                ))}
+              </ul>
             )}
           </div>
         )}
 
-        <div className="grid md:grid-cols-[210px_minmax(0,1fr)]">
-          <div className="grid content-start gap-4 border-b p-4 md:border-r md:border-b-0">
+        {clusterId != null && (
+          <div role="status" className="flex flex-wrap items-center gap-x-3 gap-y-1 border-b bg-panel-2/60 px-4 py-2 text-[13px] text-ink-2">
+            <span>
+              {clusterNodes.length ? (
+                <>Кластер <span className="font-mono">#{clusterId}</span> · <span className="font-mono tnum">{num(clusterNodes.length)}</span> узлов</>
+              ) : (
+                <>Кластер <span className="font-mono">#{clusterId}</span> не найден.</>
+              )}
+            </span>
+            <Button variant="ghost" size="xs" onClick={() => update((p) => p.delete('cluster'))}>Снять фильтр кластера</Button>
+          </div>
+        )}
+
+        <div className="flex flex-wrap items-center justify-between gap-2 border-b px-4 py-2">
+          <p role="status" className="text-xs text-muted-foreground">
+            Подсвечено <span className="font-mono text-foreground tnum">{num(highlightedCount)}</span> из {num(model.nodes.length)} узлов
+            {sel != null && <span className="ml-1">· выбранный узел и его контрагенты</span>}
+          </p>
+          <div className="flex flex-wrap items-center gap-1" role="group" aria-label="Управление видом графа">
+            <Button variant="outline" size="icon" onClick={() => canvas.current?.zoom(1.3)} aria-label="Увеличить масштаб" title="Увеличить масштаб"><PlusIcon /></Button>
+            <Button variant="outline" size="icon" onClick={() => canvas.current?.zoom(1 / 1.3)} aria-label="Уменьшить масштаб" title="Уменьшить масштаб"><MinusIcon /></Button>
+            <Button variant="outline" onClick={() => canvas.current?.fit()} title="Вместить всю сеть"><MaximizeIcon aria-hidden />Вся сеть</Button>
+            <Button variant="ghost" onClick={resetView} className="ml-1">Сбросить всё</Button>
+          </div>
+        </div>
+
+        <div className={cn('grid md:grid-cols-[196px_minmax(0,1fr)]', sel != null && 'xl:grid-cols-[196px_minmax(0,1fr)_300px]')}>
+          <div className="grid content-start gap-4 border-b p-4 md:row-span-2 md:border-r md:border-b-0">
             <fieldset className="grid gap-2">
-              <legend className="eyebrow mb-2">Роли</legend>
+              <legend className="eyebrow mb-2">Подсветка по ролям</legend>
               <div className="flex flex-wrap gap-x-4 gap-y-1.5 md:grid">
                 {ROLES.map((r) => (
-                  <label key={r} className="flex cursor-pointer items-center gap-2 text-[13px]">
-                    <input type="checkbox" checked={roles.has(r)} onChange={() => toggleRole(r)} className="size-3.5 accent-gold" />
+                  <label key={r} className="flex min-h-7 cursor-pointer items-center gap-2 text-xs">
+                    <input type="checkbox" checked={roles.has(r)} onChange={() => toggleRole(r)} className="size-3.5 shrink-0 accent-gold" />
                     <RoleDot role={r} />
                     <span className={roles.has(r) ? 'text-foreground' : 'text-muted-foreground'}>{ROLE[r].label}</span>
-                    <span className="ml-auto pl-2 font-mono text-xs text-muted-foreground tnum">{num(roleCount[r])}</span>
+                    <span className="ml-auto font-mono text-[11px] text-muted-foreground tnum">{num(roleCount[r])}</span>
                   </label>
                 ))}
               </div>
             </fieldset>
-            <label className="flex cursor-pointer items-center gap-2 text-[13px]">
-              <input type="checkbox" checked={seedOnly} onChange={(e) => setSeedOnly(e.target.checked)} className="size-3.5 accent-gold" />
-              только seed
+            <label className="flex min-h-7 cursor-pointer items-center gap-2 text-[13px]">
+              <input type="checkbox" checked={seedOnly} onChange={(e) => setSeedOnly(e.target.checked)} className="size-3.5 shrink-0 accent-gold" />
+              Только seed
             </label>
+            <p className="text-xs leading-relaxed text-muted-foreground">
+              Seed — исходные клиенты. Остальные узлы связаны с ними переводами.
+            </p>
+            {sel != null && (
+              <p className="text-xs leading-relaxed text-muted-foreground">
+                Связи выбранного узла показаны независимо от фильтров. По фильтрам: <span className="font-mono tnum">{num(activeCount)}</span> узлов.
+              </p>
+            )}
           </div>
 
           <div className="relative min-w-0">
@@ -260,20 +304,28 @@ function GraphView({ model }: { model: Model }) {
               selected={sel}
               onSelect={(i) => select(i, true)}
             />
-            {sel != null && (
-              <NodeCard
-                key={model.nodes[sel].gid}
-                model={model}
-                i={sel}
-                onPick={(j) => select(j)}
-                onClose={() => select(null)}
-              />
+            {activeCount === 0 && sel == null && (
+              <div role="status" className="absolute top-8 right-4 left-4 z-10 mx-auto max-w-sm rounded-xl border border-line-2 bg-card/95 p-5 text-center shadow-lg">
+                <p className="font-medium">Нет узлов по выбранным фильтрам</p>
+                <p className="mt-1 text-sm text-muted-foreground">Выберите другие роли или сбросьте фильтры.</p>
+                <Button variant="outline" onClick={resetView} className="mt-3">Сбросить фильтры</Button>
+              </div>
             )}
           </div>
+          {sel != null && (
+            <NodeCard
+              key={model.nodes[sel].gid}
+              model={model}
+              i={sel}
+              onPick={(j) => select(j)}
+              onClose={() => select(null)}
+            />
+          )}
         </div>
 
-        <p className="border-t px-4 py-2 font-mono text-[11px] tracking-wide text-muted-foreground">
-          колесо — масштаб · перетаскивание — сдвиг · клик — карточка и связи
+        <p className="border-t px-4 py-2 text-[11px] leading-relaxed text-muted-foreground">
+          Точка — клиент, линия — переводы в текущей выписке. Колесо — масштаб · перетаскивание — сдвиг · клик — связи.
+          <span className="ml-1">Клавиатура на графе: + / −, стрелки, Home — вся сеть.</span>
         </p>
       </section>
     </>
@@ -298,10 +350,10 @@ function NodeCard({ model, i, onPick, onClose }: { model: Model; i: number; onPi
   return (
     <aside
       aria-label="Выбранный узел"
-      className="grid content-start gap-3 border-t bg-card p-4 text-[13px] md:absolute md:top-3 md:right-3 md:max-h-[calc(100%-1.5rem)] md:w-80 md:overflow-y-auto md:rounded-xl md:border md:border-line-2 md:bg-card/95 md:backdrop-blur-sm"
+      className="grid max-h-[36rem] min-w-0 grid-cols-[minmax(0,1fr)] content-start gap-3 overflow-y-auto border-t bg-card p-4 text-[13px] md:col-start-2 xl:col-start-3 xl:row-start-1 xl:max-h-[min(78vh,780px)] xl:border-t-0 xl:border-l"
     >
-      <div className="flex items-start justify-between gap-2">
-        <div className="grid gap-1.5">
+      <div className="flex min-w-0 items-start justify-between gap-2">
+        <div className="grid min-w-0 gap-1.5">
           <Eyebrow>выбранный узел · колено {n.depth}</Eyebrow>
           <div className="font-mono text-[13px] font-medium break-all">{n.gid}</div>
         </div>
@@ -310,13 +362,13 @@ function NodeCard({ model, i, onPick, onClose }: { model: Model; i: number; onPi
         </Button>
       </div>
 
-      <div className="flex flex-wrap items-center gap-2">
+      <div className="flex min-w-0 flex-wrap items-center gap-2">
         <RoleChip role={model.role[i]} />
         {n.isSeed && <SeedTag />}
         {n.priority != null && <PriorityBar value={n.priority} className="ml-auto" />}
       </div>
 
-      <div className="grid gap-1.5 rounded-lg border border-dashed border-line-2 p-2.5">
+      <div className="grid min-w-0 grid-cols-[minmax(0,1fr)] gap-1.5 rounded-lg border border-dashed border-line-2 p-2.5">
         <div className="flex items-center justify-between gap-2">
           <span className="text-xs text-muted-foreground">основания роли</span>
           <HypTag />
@@ -330,7 +382,7 @@ function NodeCard({ model, i, onPick, onClose }: { model: Model; i: number; onPi
         )}
       </div>
 
-      <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-1">
+      <dl className="grid min-w-0 grid-cols-[minmax(0,1fr)_minmax(0,1fr)] gap-x-3 gap-y-2">
         {(
           [
             ['вход', kzt(n.inKzt)],
@@ -341,8 +393,8 @@ function NodeCard({ model, i, onPick, onClose }: { model: Model; i: number; onPi
           ] as const
         ).map(([k, v]) => (
           <div key={k} className="contents">
-            <dt className="text-muted-foreground">{k}</dt>
-            <dd className="text-right font-mono tnum">{v}</dd>
+            <dt className="min-w-0 break-words text-muted-foreground">{k}</dt>
+            <dd className="min-w-0 text-right font-mono text-xs break-words tnum">{v}</dd>
           </div>
         ))}
       </dl>
@@ -362,18 +414,18 @@ function NodeCard({ model, i, onPick, onClose }: { model: Model; i: number; onPi
       ).map(
         ([title, edges, side]) =>
           edges.length > 0 && (
-            <div key={side} className="grid gap-1">
+            <div key={side} className="grid min-w-0 grid-cols-[minmax(0,1fr)] gap-1">
               <Eyebrow>
                 {title} · {num(edges.length)}
               </Eyebrow>
-              <ul className="grid">
+              <ul className="grid min-w-0 grid-cols-[minmax(0,1fr)]">
                 {top(edges, side).map(({ j, edge }) => (
                   <li key={j}>
                     <button
                       type="button"
                       onClick={() => onPick(j)}
                       aria-label={`Выбрать ${side === 'in' ? 'плательщика' : 'получателя'} ${model.nodes[j].gid}`}
-                      className="flex h-8 w-full items-center gap-2 rounded-md px-1.5 text-left transition-colors hover:bg-panel-2/60 focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
+                      className="flex min-h-10 w-full min-w-0 flex-wrap items-center gap-x-2 gap-y-1 rounded-md px-1.5 py-1.5 text-left transition-colors hover:bg-panel-2/60 focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
                     >
                       <span className="text-muted-foreground" aria-hidden>
                         {side === 'in' ? '←' : '→'}
@@ -381,7 +433,7 @@ function NodeCard({ model, i, onPick, onClose }: { model: Model; i: number; onPi
                       <RoleDot role={model.role[j]} className="size-2" />
                       <span className="font-mono text-xs whitespace-nowrap">{gidTail(model.nodes[j].gid)}</span>
                       {model.nodes[j].isSeed && <span className="font-mono text-[10.5px] text-seed uppercase">seed</span>}
-                      <span className="ml-auto font-mono text-xs whitespace-nowrap tnum">
+                      <span className="w-full pl-5 text-right font-mono text-xs tnum">
                         {kztShort(edge.sumKzt)}
                         {edge.nTx > 1 && <span className="text-muted-foreground"> · {edge.nTx} пер.</span>}
                       </span>

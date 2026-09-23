@@ -25,6 +25,11 @@ const TOOL_INFO: Record<string, string> = {
   query_nodes: 'узлы по роли, кластеру, seed и приоритету',
   cluster_summary: 'сводка кластера: размер, seed, оборот, гипотеза',
 }
+const TOOL_LABELS: Record<string, string> = {
+  node_metrics: 'Профиль клиента', neighbors: 'Плательщики и получатели',
+  common_successors: 'Общие получатели', paths: 'Пути денег',
+  sync_events: 'Синхронные поступления', query_nodes: 'Поиск клиентов', cluster_summary: 'Сводка группы',
+}
 
 // ---------------------------------------------------------------- minimal markdown → React (no innerHTML)
 
@@ -290,7 +295,7 @@ export default function AssistantPage() {
 
   const send = (question: string) => {
     const q = question.trim()
-    if (!q || busy) return
+    if (!q || busy || !status?.llm) return
     const id = msgs.length // append-only list: index is a stable id
     const patch = (p: Partial<Msg>) => setMsgs((all) => all.map((m) => (m.id === id ? { ...m, ...p } : m)))
     setMsgs((all) => [...all, { id, q }])
@@ -306,9 +311,9 @@ export default function AssistantPage() {
   return (
     <>
       <PageHeader
-        eyebrow="ассистент · LLM выбирает инструменты, числа — из пайплайна"
+        eyebrow="Помощник аналитика"
         title="Спросите граф"
-        lede="Вопрос на естественном языке → модель вызывает детерминированные инструменты над метриками → ответ со ссылками на gid. Модель не назначает роли, не считает числа и не пишет в выгрузки; все выводы — гипотезы."
+        lede="Задавайте вопросы о клиентах и переводах. Ответы опираются на результаты анализа и содержат ссылки на досье. Для самостоятельной проверки доступны поиск путей и общих получателей."
         aside={
           <p className="text-xs text-muted-foreground">
             модель: <span className="font-mono text-ink-2">{status.model}</span> · инструментов:{' '}
@@ -319,8 +324,7 @@ export default function AssistantPage() {
 
       {!status.llm && (
         <div role="status" className="rounded-xl border border-gold/40 bg-panel-2 px-4 py-3 text-sm text-ink-2">
-          LLM не настроен (нет <code className="font-mono">OPENAI_API_KEY</code> в <code className="font-mono">.env</code>) — инструменты
-          ниже работают без него.
+          Ответы на свободные вопросы сейчас недоступны: сервис ассистента не подключён. Поиск путей и общих получателей ниже работает.
         </div>
       )}
 
@@ -334,7 +338,7 @@ export default function AssistantPage() {
             </ol>
           ) : (
             <p className="rounded-xl border border-dashed px-4 py-6 text-sm text-muted-foreground">
-              Задайте вопрос об узлах, путях денег, синхронных входах или кластерах — или выберите пример ниже.
+              {status.llm ? 'Задайте вопрос о клиентах, путях денег, синхронных поступлениях или группах — или выберите пример ниже.' : 'Пока ассистент не подключён, используйте формы «Общие получатели» и «Пути денег» для проверки связей.'}
             </p>
           )}
 
@@ -344,7 +348,7 @@ export default function AssistantPage() {
                 <button
                   key={q}
                   type="button"
-                  disabled={busy}
+                  disabled={busy || !status.llm}
                   onClick={() => send(q)}
                   className="rounded-full border bg-card px-3 py-1.5 text-left text-xs text-ink-2 transition-colors hover:border-line-2 hover:text-foreground disabled:opacity-50"
                 >
@@ -364,6 +368,7 @@ export default function AssistantPage() {
               </label>
               <textarea
                 id="ask"
+                disabled={!status.llm}
                 rows={3}
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
@@ -378,7 +383,7 @@ export default function AssistantPage() {
               />
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <span className="text-xs text-muted-foreground">Enter — отправить, Shift+Enter — новая строка</span>
-                <Button type="submit" disabled={busy || !input.trim()}>
+                <Button type="submit" disabled={busy || !status.llm || !input.trim()}>
                   Спросить
                 </Button>
               </div>
@@ -387,17 +392,17 @@ export default function AssistantPage() {
         </section>
 
         <aside className="grid gap-4 lg:sticky lg:top-20">
-          <Panel eyebrow="инструменты" title="Что может вызвать модель">
+          <Panel eyebrow="возможности" title="Что можно исследовать">
             <ul className="grid gap-2.5">
               {status.tools.map((name) => (
                 <li key={name} className="grid gap-0.5">
-                  <span className="font-mono text-[13px] text-foreground">{name}</span>
+                  <span className="text-[13px] font-medium text-foreground">{TOOL_LABELS[name] ?? name}</span>
                   {TOOL_INFO[name] && <span className="text-xs text-muted-foreground">{TOOL_INFO[name]}</span>}
                 </li>
               ))}
             </ul>
           </Panel>
-          <Panel eyebrow="без LLM" title="Проверить без LLM" bodyClassName="grid gap-5">
+          <Panel eyebrow="по данным графа" title="Проверить связи" className="order-first" bodyClassName="grid gap-5">
             <CommonForm />
             <PathsForm />
           </Panel>

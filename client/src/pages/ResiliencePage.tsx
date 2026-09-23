@@ -23,15 +23,15 @@ export default function ResiliencePage() {
   return (
     <>
       <PageHeader
-        eyebrow="анализ · устойчивость"
-        title="Что если изъять верхушку"
-        lede="Изымаем топ-N узлов по priority_score и смотрим, распадается ли сеть. Связность считается без учёта направления перевода (слабая связность) — это оговорка, не точный результат. Сценарий «что если», не рекомендация к действию."
+        eyebrow="проверки · сценарии"
+        title="Устойчивость сети"
+        lede="Как изменится связность, если исключить клиентов из начала очереди проверки. Сценарий «что если» использует слабую связность без учёта направления переводов и не является рекомендацией к действию."
       />
 
       <Segmented
         value={String(selected.N)}
         onChange={(v) => setN(Number(v))}
-        options={data.map((p) => ({ value: String(p.N), label: p.N === 0 ? 'без изъятия' : `топ-${p.N}` }))}
+        options={data.map((p) => ({ value: String(p.N), label: p.N === 0 ? 'вся сеть' : `топ-${p.N}` }))}
       />
 
       <StatStrip
@@ -39,7 +39,7 @@ export default function ResiliencePage() {
           { value: `${num(before.components)} → ${num(selected.components)}`, label: 'фрагментов (≥ 2 узлов)' },
           { value: `${num(before.largestNodes)} → ${num(selected.largestNodes)}`, label: 'крупнейший фрагмент, узлов' },
           { value: `${pct(before.largestShare)} → ${pct(selected.largestShare)}`, label: 'доля оборота в крупнейшем' },
-          { value: pct(selected.removedShare), label: 'оборот, затронутый изъятием', tone: 'var(--gold)' },
+          { value: pct(selected.removedShare), label: 'оборот исключённых связей', tone: 'var(--gold)' },
         ]}
       />
 

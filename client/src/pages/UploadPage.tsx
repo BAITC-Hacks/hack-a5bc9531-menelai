@@ -67,7 +67,7 @@ export default function UploadPage() {
 
   const onSubmit = async (e: FormEvent) => {
     e.preventDefault()
-    if (!ready) return
+    if (!ready || running) return
     const form = new FormData()
     for (const f of FILES) form.append(f.key, files[f.key]!)
     if (name.trim()) form.append('name', name.trim())
@@ -86,8 +86,8 @@ export default function UploadPage() {
   return (
     <>
       <PageHeader
-        eyebrow="данные · загрузка выгрузки"
-        title="Загрузить выгрузку"
+        eyebrow="данные · новая выписка"
+        title="Загрузить выписку"
         lede={
           <>
             Три файла .parquet: nodes, edges, transactions — выгрузка переводов в том же формате, что и демо. После загрузки пайплайн посчитает роли, кластеры и
@@ -112,7 +112,9 @@ export default function UploadPage() {
           role="button"
           tabIndex={0}
           onClick={() => picker.current?.click()}
-          onKeyDown={(e) => (e.key === 'Enter' || e.key === ' ') && picker.current?.click()}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); picker.current?.click() }
+          }}
           onDragOver={(e) => {
             e.preventDefault()
             setDragOver(true)
@@ -126,7 +128,7 @@ export default function UploadPage() {
         >
           <FileUpIcon className="size-6 text-muted-foreground" aria-hidden />
           <span className="text-sm font-medium">Перетащите сюда три файла или нажмите, чтобы выбрать</span>
-          <span className="text-xs text-muted-foreground">Файлы распределяются по имени: в нём должно быть nodes, edges или transactions.</span>
+          <span className="text-xs text-muted-foreground">До 100 МБ суммарно. Файлы распределяются по имени: в нём должно быть nodes, edges или transactions.</span>
           <input
             ref={picker}
             type="file"
@@ -165,11 +167,11 @@ export default function UploadPage() {
         </div>
 
         <div className="flex flex-wrap items-end gap-3">
-          <label className="grid gap-1.5 text-[13px]">
+          <label className="grid w-full gap-1.5 text-[13px] sm:w-auto">
             <span className="text-muted-foreground">Название (необязательно)</span>
-            <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="например, выгрузка за август" className="w-72" />
+            <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="например, выгрузка за август" className="w-full sm:w-72" />
           </label>
-          <Button type="submit" disabled={!ready || running}>
+          <Button type="submit" className="min-h-11" disabled={!ready || running}>
             Рассчитать роли
           </Button>
           {running && (

@@ -19,7 +19,7 @@ export default function TimePage() {
   const nSorted = [...data.daily].sort((a, b) => a.n - b.n)
   const quintile = new Map(nSorted.map((d, i) => [d.date, Math.min(4, Math.floor((i / nSorted.length) * 5))]))
   const peak = [...data.daily].sort((a, b) => b.n - a.n)[0]
-  const maxKzt = Math.max(...data.daily.map((d) => d.kzt))
+  const maxKzt = Math.max(0, ...data.daily.map((d) => d.kzt))
   const days = data.daily.length ? dayRange(data.daily[0].date, data.daily[data.daily.length - 1].date) : []
   // grid starts on Monday (column 0)
   const startCol = days.length ? (new Date(days[0]).getUTCDay() + 6) % 7 : 0
@@ -27,8 +27,8 @@ export default function TimePage() {
   return (
     <>
       <PageHeader
-        eyebrow="анализ · время"
-        title="Переводы по дням"
+        eyebrow="проверки · время"
+        title="Временные паттерны"
         lede={
           <>
             Временные паттерны: синхронные переводы — {data.syncPayers}+ плательщиков одному получателю за день, сквозной транзит — деньги уходят
@@ -57,17 +57,16 @@ export default function TimePage() {
                     key={date}
                     title={d ? `${date} · ${kzt(d.kzt)}` : date}
                     className="grid aspect-square min-w-0 place-content-center rounded-md border text-center"
-                    style={{ background: `color-mix(in srgb, var(--gold) ${8 + q * 14}%, var(--panel-2))` }}
+                    style={{ background: `color-mix(in srgb, var(--gold) ${8 + q * 10}%, var(--panel-2))` }}
                   >
-                    <span className="font-mono text-[12px] tnum">{Number(date.slice(8, 10))}</span>
-                    {d && <span className="font-mono text-[10px] tnum text-ink-2">{num(d.n)}</span>}
+                    <span className="font-mono text-[12px] tnum">{date.slice(8, 10) === '01' ? dayMonth(date) : Number(date.slice(8, 10))}</span>
+                    {d && <span className="font-mono text-[10px] tnum text-foreground">{num(d.n)}</span>}
                   </div>
                 )
               })}
             </div>
             <p className="mt-3 text-xs text-muted-foreground">
-              Фон — квинтиль числа переводов за день (светлее = больше). Пиковый день — {dayMonth(peak.date)}: {num(peak.n)} переводов на{' '}
-              {kztShort(peak.kzt)}.
+              Фон — квинтиль числа переводов за день (темнее = больше). {peak ? <>Пиковый день — {dayMonth(peak.date)}: {num(peak.n)} переводов на {kztShort(peak.kzt)}.</> : 'Переводов в выгрузке нет.'}
             </p>
           </div>
 
@@ -81,17 +80,17 @@ export default function TimePage() {
                     <title>
                       {dayMonth(d.date)}: {kzt(d.kzt)}
                     </title>
-                    <rect x={i * 10} y={80 - h} width={7} height={h} fill="var(--gold)" opacity={d.date === peak.date ? 1 : 0.55} rx={1} />
+                    <rect x={i * 10} y={80 - h} width={7} height={h} fill="var(--gold)" opacity={d.date === peak?.date ? 1 : 0.55} rx={1} />
                   </g>
                 )
               })}
-              <line x1={0} y1={80.5} x2={310} y2={80.5} stroke="var(--border)" strokeWidth={1} />
+              <line x1={0} y1={80.5} x2={Math.max(10, data.daily.length * 10)} y2={80.5} stroke="var(--border)" strokeWidth={1} />
             </svg>
           </div>
         </div>
       </Panel>
 
-      <Panel eyebrow={`≥ ${data.syncPayers} плательщиков · один день`} title="Синхронные переводы">
+      <Panel eyebrow={`≥ ${data.syncPayers} плательщиков · один день`} title="Синхронные поступления">
         {data.sync.length === 0 ? (
           <p className="text-sm text-ink-2">Не найдено.</p>
         ) : (
@@ -133,7 +132,7 @@ export default function TimePage() {
         )}
         <p className="mt-3 text-xs text-muted-foreground">Показано {num(data.sync.length)} из {num(data.syncTotal)}.</p>
         <p className="mt-2 flex items-center gap-2 text-xs text-muted-foreground">
-          <HypTag /> Совпадение по дню — признак координации.
+          <HypTag /> Совпадение по дню — повод проверить возможную координацию переводов.
         </p>
       </Panel>
 
@@ -187,7 +186,7 @@ export default function TimePage() {
           </div>
         )}
         <p className="mt-3 flex items-center gap-2 text-xs text-muted-foreground">
-          <HypTag /> Сквозной транзит — признак прогона денег.
+          <HypTag /> Быстрый выход средств — признак возможного транзита, требующий проверки.
         </p>
       </Panel>
     </>

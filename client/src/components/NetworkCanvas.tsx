@@ -1,6 +1,6 @@
 // Canvas renderer for the network screen: pan/zoom, hover tooltip, ego highlight, money-flow particles.
 // Ported from the prototype artifact; all mutable view state lives in refs so the rAF loop never re-renders React.
-import { useEffect, useImperativeHandle, useRef, type Ref } from 'react'
+import { useEffect, useImperativeHandle, useLayoutEffect, useRef, type Ref } from 'react'
 import { ROLE } from '@/lib/roles'
 import { ROLES, type Edge, type LaidOutNode, type Role } from '@/lib/api'
 import { dec, gidTail, kztShort, num } from '@/lib/format'
@@ -35,6 +35,8 @@ export type CanvasHandle = {
   fit: (ids?: number[]) => void
   /** center on a node and zoom to its direct counterparties */
   focus: (i: number) => void
+  /** zoom around the view center */
+  zoom: (factor: number) => void
 }
 
 type Props = {
@@ -49,8 +51,9 @@ type Props = {
 }
 
 const CAT = ['#3987e5', '#d95926', '#199e70', '#c98500', '#d55181', '#2fa52f', '#9085e9', '#e66767']
-const OTHER = '#3b4452'
-const IN_BLUE = '#78beff'
+const OTHER = '#b8b8b0'
+const IN_BLUE = '#3987e5'
+const OUT_GOLD = '#d08a00'
 const esc = (s: string) => s.replace(/[&<>"]/g, (c) => `&#${c.charCodeAt(0)};`)
 
 export default function NetworkCanvas(props: Props) {
@@ -62,12 +65,12 @@ export default function NetworkCanvas(props: Props) {
   const dirty = useRef(true)
   const cmd = useRef<CanvasHandle | null>(null)
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     p.current = props
     dirty.current = true
   })
 
-  useImperativeHandle(ref, () => ({ fit: (ids) => cmd.current?.fit(ids), focus: (i) => cmd.current?.focus(i) }), [])
+  useImperativeHandle(ref, () => ({ fit: (ids) => cmd.current?.fit(ids), focus: (i) => cmd.current?.focus(i), zoom: (factor) => cmd.current?.zoom(factor) }), [])
 
   useEffect(() => {
     const stage = stageRef.current!
@@ -103,11 +106,14 @@ export default function NetworkCanvas(props: Props) {
 
     function resize() {
       const w = stage.clientWidth, h = stage.clientHeight
+      const changed = W > 0 && (w !== W || h !== H)
       if (W) { view.x += (w - W) / 2; view.y += (h - H) / 2 } // keep the center on resize
       W = w; H = h
       dpr = Math.min(devicePixelRatio || 1, 2)
       cv.width = W * dpr; cv.height = H * dpr
       baseK = Math.min(W / (bx1 - bx0 + 40), H / (by1 - by0 + 40))
+      // The details column changes the available width after selection.
+      if (changed && p.current.selected != null) focus(p.current.selected)
       dirty.current = true
     }
     function fit(ids?: number[]) {
@@ -133,7 +139,15 @@ export default function NetworkCanvas(props: Props) {
       view.y = H / 2 - M.ys[i] * view.k
       dirty.current = true
     }
-    cmd.current = { fit, focus }
+    function zoom(factor: number, mx = W / 2, my = H / 2) {
+      const nk = Math.max(baseK * 0.5, Math.min(baseK * 40, view.k * factor))
+      view.x = mx - ((mx - view.x) * nk) / view.k
+      view.y = my - ((my - view.y) * nk) / view.k
+      view.k = nk
+      tip.hidden = true
+      dirty.current = true
+    }
+    cmd.current = { fit, focus, zoom }
     resize()
     fit()
     const ro = new ResizeObserver(resize)
@@ -185,7 +199,7 @@ export default function NetworkCanvas(props: Props) {
       ctx.lineWidth = Math.max(0.4, Math.min(1.2, (k / baseK) * 0.6))
       ctx.strokeStyle = C.ink
       for (const bright of [false, true]) {
-        ctx.globalAlpha = bright ? 0.09 : 0.025
+        ctx.globalAlpha = bright ? 0.22 : 0.045
         ctx.beginPath()
         for (let e = 0; e < M.src.length; e++) {
           const s = M.src[e], d = M.dst[e]
@@ -203,7 +217,7 @@ export default function NetworkCanvas(props: Props) {
         for (const e of [...M.out[sel], ...M.inn[sel]]) {
           const s = M.src[e], d = M.dst[e]
           const x1 = X(s), y1 = Y(s), x2 = X(d), y2 = Y(d)
-          const col = s === sel ? C.gold : IN_BLUE
+          const col = s === sel ? OUT_GOLD : IN_BLUE
           ctx.strokeStyle = ctx.fillStyle = col
           ctx.lineWidth = Math.max(0.8, Math.min(4, Math.log10(M.edges[e].sumKzt) - 3.3))
           ctx.beginPath(); ctx.moveTo(x1, y1); ctx.lineTo(x2, y2); ctx.stroke()
@@ -230,8 +244,8 @@ export default function NetworkCanvas(props: Props) {
         }
         const target = !pool.length ? 0 : sel != null ? Math.min(120, pool.length * 3) : Math.min(MAXP, Math.ceil(pool.length * 0.29))
         while (np < target) { pe[np] = pick(); pt[np] = Math.random(); ps[np] = 0.35 + Math.random() * 0.3; np++ }
-        ctx.globalCompositeOperation = 'lighter'
-        ctx.strokeStyle = ctx.fillStyle = C.gold
+        ctx.globalCompositeOperation = 'source-over'
+        ctx.strokeStyle = ctx.fillStyle = OUT_GOLD
         ctx.lineWidth = 1.2
         ctx.globalAlpha = 0.5
         ctx.beginPath()
@@ -363,12 +377,26 @@ export default function NetworkCanvas(props: Props) {
     const onWheel = (e: WheelEvent) => {
       e.preventDefault()
       const [mx, my] = local(e)
-      const nk = Math.max(baseK * 0.5, Math.min(baseK * 40, view.k * Math.exp(-e.deltaY * 0.0015)))
-      view.x = mx - ((mx - view.x) * nk) / view.k
-      view.y = my - ((my - view.y) * nk) / view.k
-      view.k = nk
+      zoom(Math.exp(-e.deltaY * 0.0015), mx, my)
+    }
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.ctrlKey || e.metaKey || e.altKey) return
+      switch (e.key) {
+        case '+': case '=': zoom(1.3); break
+        case '-': zoom(1 / 1.3); break
+        case 'Home': fit(); break
+        case 'ArrowLeft': view.x += 40; break
+        case 'ArrowRight': view.x -= 40; break
+        case 'ArrowUp': view.y += 40; break
+        case 'ArrowDown': view.y -= 40; break
+        case 'Escape': p.current.onSelect(null); break
+        default: return
+      }
+      e.preventDefault()
+      tip.hidden = true
       dirty.current = true
     }
+    cv.addEventListener('keydown', onKeyDown)
     cv.addEventListener('pointerdown', onDown)
     cv.addEventListener('pointermove', onMove)
     cv.addEventListener('pointerup', onUp)
@@ -377,6 +405,7 @@ export default function NetworkCanvas(props: Props) {
     return () => {
       cancelAnimationFrame(raf)
       ro.disconnect()
+      cv.removeEventListener('keydown', onKeyDown)
       cv.removeEventListener('pointerdown', onDown)
       cv.removeEventListener('pointermove', onMove)
       cv.removeEventListener('pointerup', onUp)
@@ -389,60 +418,67 @@ export default function NetworkCanvas(props: Props) {
   const row = 'flex items-center gap-2'
   const sw = 'inline-block size-2.5 shrink-0 rounded-full'
   return (
-    <div
-      ref={stageRef}
-      className="relative h-[min(78vh,760px)] min-h-[520px] overflow-hidden"
-      style={{ background: 'radial-gradient(ellipse at 50% 45%, #121a26 0%, var(--background) 70%)' }}
-    >
-      <canvas
-        ref={canvasRef}
-        role="img"
-        aria-label={`Схема сети: ${num(model.nodes.length)} узлов, ${num(model.edges.length)} связей. Текстовая альтернатива — поиск по gid и карточка выбранного узла со списками контрагентов.`}
-        className="absolute inset-0 size-full cursor-grab touch-none"
-      />
+    <div className="min-w-0">
       <div
-        ref={tipRef}
-        hidden
-        className="pointer-events-none absolute z-10 grid max-w-72 gap-0.5 rounded-md border border-line-2 bg-popover/95 px-2.5 py-2 text-xs text-ink-2"
-      />
-      <div className="absolute bottom-3 left-3 hidden max-w-64 gap-1.5 rounded-lg border bg-background/85 px-3 py-2.5 text-xs text-ink-2 backdrop-blur-sm md:grid">
-        {colorBy === 'role' &&
-          ROLES.map((r) => (
-            <div key={r} className={row}>
-              <span className={sw} style={{ background: ROLE[r].color, opacity: r === 'peripheral' ? 0.6 : 1 }} />
-              {ROLE[r].label}
-            </div>
-          ))}
-        {colorBy === 'depth' && (
-          <>
-            <div className={row}><span className={sw} style={{ background: depthColor(0) }} />колено 0 — seed</div>
-            {Array.from({ length: Math.max(0, model.maxDepth - 1) }, (_, k) => k + 1).map((d) => (
-              <div key={d} className={row}><span className={sw} style={{ background: depthColor(d) }} />колено {d}</div>
-            ))}
-            <div className={row}><span className={`${sw} border-[1.5px]`} style={{ borderColor: depthColor(model.maxDepth) }} />колено {model.maxDepth} — обход остановлен</div>
-          </>
-        )}
-        {colorBy === 'cluster' && (
-          <>
-            {model.topClusters.map((c, k) => (
-              <div key={c.id} className={row}>
-                <span className={sw} style={{ background: CAT[k] }} />
-                кластер #{c.id} · <span className="font-mono tnum">{num(c.n)}</span> узл.
+        ref={stageRef}
+        className="relative h-[min(68vh,680px)] min-h-[420px] overflow-hidden sm:min-h-[500px]"
+        style={{ background: '#fcfcfb' }}
+      >
+        <canvas
+          ref={canvasRef}
+          role="img"
+          tabIndex={0}
+          aria-label={`Схема сети: ${num(model.nodes.length)} узлов, ${num(model.edges.length)} связей. Масштаб: плюс и минус, сдвиг: стрелки, вся сеть: Home. Текстовая альтернатива — поиск по gid и карточка выбранного узла со списками контрагентов.`}
+          className="absolute inset-0 size-full cursor-grab touch-none focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ring"
+        />
+        <div
+          ref={tipRef}
+          hidden
+          className="pointer-events-none absolute z-10 grid max-w-72 gap-0.5 rounded-md border border-line-2 bg-popover/95 px-2.5 py-2 text-xs text-ink-2"
+        />
+      </div>
+      <details open className="border-t bg-background/50 px-4 py-2 text-xs text-ink-2">
+        <summary className="w-fit cursor-pointer rounded py-1 font-medium text-muted-foreground focus-visible:outline-2 focus-visible:outline-ring">Легенда и направления переводов</summary>
+        <div className="flex flex-wrap gap-x-4 gap-y-2 py-2">
+          {colorBy === 'role' &&
+            ROLES.map((r) => (
+              <div key={r} className={row}>
+                <span className={sw} style={{ background: ROLE[r].color, opacity: r === 'peripheral' ? 0.6 : 1 }} />
+                {ROLE[r].label}
               </div>
             ))}
-            <div className={row}><span className={sw} style={{ background: OTHER }} />остальные кластеры</div>
-          </>
-        )}
-        <div className={row}><span className={`${sw} ring-1 ring-foreground ring-offset-1 ring-offset-background`} />seed — белое кольцо</div>
-        {selected != null ? (
-          <>
-            <div className={row}><span className="h-0.5 w-3.5 shrink-0 rounded-full bg-gold" />исходящие переводы</div>
-            <div className={row}><span className="h-0.5 w-3.5 shrink-0 rounded-full" style={{ background: IN_BLUE }} />входящие переводы</div>
-          </>
-        ) : (
-          flow && <div className={row}><span className="h-0.5 w-3.5 shrink-0 rounded-full bg-gold" />поток денег, частота ~ сумма</div>
-        )}
-      </div>
+          {colorBy === 'depth' &&
+            Array.from({ length: model.maxDepth + 1 }, (_, depth) => (
+              <div key={depth} className={row}>
+                <span
+                  className={`${sw}${depth === model.maxDepth ? ' border-[1.5px]' : ''}`}
+                  style={depth === model.maxDepth ? { borderColor: depthColor(depth) } : { background: depthColor(depth) }}
+                />
+                колено {depth}{depth === 0 && ' — seed'}{depth === model.maxDepth && ' — обход остановлен'}
+              </div>
+            ))}
+          {colorBy === 'cluster' && (
+            <>
+              {model.topClusters.map((c, k) => (
+                <div key={c.id} className={row}>
+                  <span className={sw} style={{ background: CAT[k] }} />
+                  кластер #{c.id} · <span className="font-mono tnum">{num(c.n)}</span> узл.
+                </div>
+              ))}
+              <div className={row}><span className={sw} style={{ background: OTHER }} />остальные кластеры</div>
+            </>
+          )}
+          <div className={row}><span className={`${sw} ring-1 ring-foreground ring-offset-1 ring-offset-background`} />seed — контрастное кольцо</div>
+          {selected != null ? (
+            <>
+              <div className={row}><span className="h-0.5 w-3.5 shrink-0 rounded-full" style={{ background: OUT_GOLD }} />исходящие переводы</div>
+              <div className={row}><span className="h-0.5 w-3.5 shrink-0 rounded-full" style={{ background: IN_BLUE }} />входящие переводы</div>
+            </>
+          ) : (
+            flow && <div className={row}><span className="h-0.5 w-3.5 shrink-0 rounded-full" style={{ background: OUT_GOLD }} />поток денег, частота ~ сумма</div>
+          )}
+        </div>
+      </details>
     </div>
   )
 }
