@@ -8,9 +8,10 @@
 
 Каркас проекта. Сейчас реализовано:
 - сервер читает три `.parquet` и отдаёт граф по HTTP API;
-- клиент показывает сводную статистику по данным.
+- сервер читает выгрузку пайплайна из `out/` (роли, кластеры, приоритет, evidence) и отдаёт её по API вместе с раскладкой графа;
+- клиент: обзор, интерактивная схема сети, топ приоритетов, кластеры, карточка узла, аналитика (маршруты и циклы, время, аномалии, устойчивость, полнота данных), AI-ассистент, правила ролей, схема решения, скачивание трёх CSV.
 
-Роли, кластеры, приоритеты, CSV-выгрузки и схема сети — в работе.
+Клиент и сервер роли не пересчитывают — только показывают результат пайплайна.
 
 ## Как работает решение
 
@@ -20,14 +21,16 @@ _Будет описано после реализации пайплайна:_ 
 
 | Часть | Стек |
 |---|---|
-| Сервер | Bun, Hono, hyparquet (чтение parquet, ZSTD через встроенный `Bun.zstdDecompressSync`) |
-| Клиент | Vite, React 19, React Router 8, TypeScript, Tailwind CSS v4, shadcn/ui (Base UI) |
+| Сервер | Bun, Hono, hyparquet (чтение parquet, ZSTD через встроенный `Bun.zstdDecompressSync`), d3-force (раскладка графа при старте) |
+| Клиент | Vite, React 19, React Router 8, TypeScript, Tailwind CSS v4, shadcn/ui (Base UI), Canvas 2D для схемы сети; шрифты Unbounded, IBM Plex Sans/Mono (Google Fonts) |
 | Монорепо | bun workspaces: `client/`, `server/` |
 
 ## Архитектура
 
 ```
-task/data/*.parquet ──► server/ (Bun + Hono, :3001) ──/api──► client/ (Vite + React, :5173)
+task/data/*.parquet ─┐
+                      ├─► server/ (Bun + Hono, :3001) ──/api──► client/ (Vite + React, :5173)
+out/ (пайплайн) ──────┘
 ```
 
 ```
@@ -35,16 +38,22 @@ server/src/
   index.ts        точка входа Bun (порт 3001, env PORT)
   app.ts          Hono-приложение: /api + JSON-обработчики 404/500
   routes/index.ts все маршруты API в одном месте, экспорт AppType для Hono RPC
-  routes/*.ts     health, stats, graph, transactions, nodes, top, clusters
+  routes/*.ts     health, stats, graph, transactions, nodes, analytics, assistant, results (top, clusters, meta, export)
   data/load.ts    загрузка parquet один раз при старте (env DATA_DIR)
-  data/out.ts     чтение out/*.csv пайплайна один раз при старте (env OUT_DIR)
+  data/results.ts загрузка out/node_metrics.json, clusters.csv, top_nodes.csv (env OUT_DIR)
+                  и раскладка графа d3-force один раз при старте
+  data/analytics.ts  маршруты, циклы, время, аномалии, устойчивость, полнота (при старте)
+  data/tools.ts   детерминированные инструменты запросов к графу (для ассистента и UI)
   data/types.ts   типы parquet и out/*.csv
+  data/out.ts, routes/top.ts, routes/clusters.ts  ранний загрузчик out/*.csv и его маршруты; в routes/index.ts не подключены
 
 client/src/
   router.tsx      таблица маршрутов (React Router, createBrowserRouter)
   layouts/        общий каркас: навигация и поиск по gid
-  pages/          Обзор, Схема сети, Узел, Топ приоритетов, Кластеры, 404
+  pages/          Обзор, Схема сети, Карточка узла, Приоритеты, Кластеры, Правила ролей, 404
+  components/kit.tsx  общие элементы дизайна: роли и их цвета, заголовки, панели, gid-ссылки, шкалы
   lib/api.ts      типизированные запросы к /api
+  lib/format.ts   форматирование чисел и сумм (ru-RU)
 ```
 
 - gid везде хранятся строками: значения вида `100000003684369100` больше `Number.MAX_SAFE_INTEGER`.
@@ -54,22 +63,39 @@ client/src/
 
 | Путь | Что показывает |
 |---|---|
-| `/` | сводная статистика по данным |
-| `/nodes/:gid` | узел: колено, seed, число входящих и исходящих связей |
-| `/graph`, `/top`, `/clusters` | заглушки, в работе |
+| `/` | обзор: масштаб выгрузки, распределение ролей, колена обхода, первые в очереди, ловушки данных, скачивание CSV |
+| `/graph` | схема сети на canvas: раскраска по роли / колену / кластеру, фильтр ролей, поиск gid, карточка выбранного узла; `?q=<gid или хвост>`, `?cluster=<id>` |
+| `/nodes/:gid` | карточка узла: роль и почему (evidence, порог ↔ факт), движение денег, метрики, циклы, синхронные входы, все рёбра |
+| `/top` | топ приоритетов с обоснованием `why` |
+| `/clusters` | кластеры: состав ролей, гипотеза, крупнейшие узлы |
+| `/analysis/routes` | повторяющиеся цепочки A→B→C и простые циклы ≤ 5 |
+| `/analysis/time` | активность по дням, синхронные входы, сквозной транзит |
+| `/analysis/anomalies` | дробление сумм у порога 5 000 ₸, вход «не по колену» |
+| `/analysis/resilience` | что будет со связностью при изъятии топ-N по приоритету |
+| `/analysis/completeness` | белые пятна выгрузки и рекомендуемые запросы в банк |
+| `/assistant` | AI-ассистент: вопрос → вызовы детерминированных инструментов → ответ со ссылками на gid |
+| `/method/rules` | правила ролей и приоритета с порогами из выгрузки пайплайна |
+| `/method/architecture` | схема решения: parquet → пайплайн → out/ → сервер → интерфейс |
 
 ### API
 
 | Метод | Ответ |
 |---|---|
 | `GET /api/health` | `{ ok: true }` |
-| `GET /api/stats` | число узлов, рёбер, транзакций, seed, общий оборот |
-| `GET /api/graph` | `{ nodes, edges }`; узлы дополнены `role, roleScore, clusterId, priorityScore, inKzt, outKzt, inDeg, outDeg` |
+| `GET /api/stats` | число узлов, рёбер, транзакций, seed, общий оборот, период, узлы по коленам, число узлов по ролям и кластеров |
+| `GET /api/graph` | `{ nodes, edges }`; у узлов координаты `x, y`, роль, приоритет, кластер |
 | `GET /api/transactions` | все транзакции с датами |
-| `GET /api/nodes/:gid` | `{ node, metrics, role, in, out, daily }`: узел, метрики из `node_metrics.csv`, роль с evidence, рёбра, обороты по дням; 404 для неизвестного gid |
-| `GET /api/top` | строки `top_nodes.csv` |
-| `GET /api/clusters` | строки `clusters.csv` (`topGids` — массив) |
-| `GET /api/clusters/:id` | строка `clusters.csv` + `members`; 404 для неизвестного id |
+| `GET /api/nodes/:gid` | узел + метрики пайплайна + входящие и исходящие рёбра; 404 для неизвестного gid |
+| `GET /api/top` | `top_nodes.csv` + метрики узлов |
+| `GET /api/clusters` | `clusters.csv` + число узлов каждой роли в кластере |
+| `GET /api/meta` | пороги правил, веса ролей, число узлов по ролям (`_meta` из `node_metrics.json`) |
+| `GET /api/export/:file` | скачивание `nodes_roles.csv`, `clusters.csv`, `top_nodes.csv` |
+| `GET /api/analytics/:key` | `time`, `routes`, `anomalies`, `resilience`, `completeness`: считаются при старте сервера из parquet и `out/` |
+| `GET /api/assistant/status` | настроен ли LLM, модель, список инструментов |
+| `POST /api/assistant/tools/:name` | детерминированный инструмент: `node_metrics`, `neighbors`, `common_successors`, `paths`, `sync_events`, `query_nodes`, `cluster_summary` |
+| `POST /api/assistant/ask` | `{ question }` → ответ модели и цепочка вызовов инструментов |
+
+Маршруты top, clusters, meta и export возвращают 503, если в `out/` нет выгрузки пайплайна.
 
 ## Установка и запуск
 
@@ -80,7 +106,7 @@ bun install
 bun run dev
 ```
 
-Клиент: http://localhost:5173, API: http://localhost:3001. Путь к данным по умолчанию — `task/data`, переопределяется переменной `DATA_DIR`. Сервер также читает CSV пайплайна из `out/` (переменная `OUT_DIR`) и не стартует без них; формат — [docs/PIPELINE_CONTRACT.md](docs/PIPELINE_CONTRACT.md).
+Клиент: http://localhost:5173, API: http://localhost:3001. Путь к данным по умолчанию — `task/data`, переопределяется переменной `DATA_DIR`. Сервер также читает выгрузку пайплайна из `out/` (переменная `OUT_DIR`); без неё маршруты ролей отвечают 503. Формат — [docs/PIPELINE_CONTRACT.md](docs/PIPELINE_CONTRACT.md).
 
 
 ### Пайплайн (Python)
@@ -92,6 +118,13 @@ cd pipeline && uv sync && uv run python run.py
 ```
 
 Правила ролей с источниками порогов — [pipeline/RULES.md](pipeline/RULES.md); запуск, проверка (синтетический тест, детерминизм, чувствительность, симуляция жюри), ограничения и масштабирование — [pipeline/README.md](pipeline/README.md).
+
+Если порты заняты другой копией проекта, сервер и прокси клиента переназначаются переменными:
+
+```bash
+cd server && PORT=3002 bun run dev
+cd client && API_PROXY=http://localhost:3002 bunx vite --port 5180
+```
 
 ## Как проверить
 
@@ -110,11 +143,14 @@ curl localhost:3001/api/nodes/100000003684369100
 - `nodes.parquet` — 2 248 клиентов, колено обхода, признак seed;
 - `transactions.parquet` — 4 840 отдельных переводов с датами.
 
-Описание полей — `task/README.md`. Внешние сервисы и API не используются.
+Описание полей — `task/README.md`.
+
+Внешний сервис один: **OpenAI Responses API**, только на экране «Ассистент». Модель выбирает детерминированные инструменты сервера и формулирует ответ. Роли, пороги, приоритет и числа она не считает и в выгрузки не пишет. Ключ `OPENAI_API_KEY` берётся из корневого `.env` (не коммитится), модель — `OPENAI_MODEL` (по умолчанию `gpt-5.6-sol`). Без ключа ассистент отвечает 503, остальное работает локально.
 
 ## Ограничения
 
-- Реализован только каркас: ролей, кластеров, приоритетов и выгрузок пока нет.
+- Интерфейс показывает только то, что лежит в `out/`. Без выгрузки пайплайна экраны ролей, приоритетов и кластеров показывают ошибку, а схема сети — узлы без ролей.
+- Схема сети рисует все 2 248 узлов на canvas; раскладка считается на сервере при старте, примерно за секунду. На графе в ~1 млн узлов её нужно считать заранее и показывать фрагменты.
 - Особенности данных, которые пайплайн должен учитывать: обрыв обхода на 4-м колене (444 узла без исходящих — артефакт выгрузки), заниженные входящие у seed, порог 5 000 ₸, только исходящие и только внутрибанковские переводы.
 
 ## Deployed-версия
