@@ -109,21 +109,6 @@ function routes() {
 // ---------------------------------------------------------------- anomalies
 
 function anomalies() {
-  const hist = Array.from({ length: 15 }, (_, i) => ({ from: 5000 + i * 1000, n: 0 }));
-  for (const t of transactions) if (t.sumKzt >= 5000 && t.sumKzt < 20000) hist[Math.floor((t.sumKzt - 5000) / 1000)].n++;
-
-  const near = new Map<string, { n: number; kzt: number; dsts: Set<string>; days: Set<string> }>();
-  for (const t of transactions) {
-    if (t.sumKzt < 5000 || t.sumKzt >= 6000) continue;
-    const s = near.get(t.src) ?? { n: 0, kzt: 0, dsts: new Set(), days: new Set() };
-    s.n++; s.kzt += t.sumKzt; s.dsts.add(t.dst); s.days.add(t.date);
-    near.set(t.src, s);
-  }
-  const structuring = [...near]
-    .filter(([, s]) => s.n >= 3)
-    .map(([src, s]) => ({ src, isSeed: metrics(src)?.is_seed ?? false, role: role(src), n: s.n, kzt: s.kzt, dsts: s.dsts.size, days: s.days.size }))
-    .sort((a, b) => b.n - a.n || b.kzt - a.kzt);
-
   // z-score of log(in_kzt) within the node's crawl hop, among nodes with inflow
   const byDepth = new Map<number, { gid: string; m: Metrics; v: number }[]>();
   for (const [gid, m] of Object.entries(results?.metrics ?? {}))
@@ -138,8 +123,7 @@ function anomalies() {
     .sort((a, b) => b.z - a.z)
     .slice(0, 15);
 
-  const nearTotal = hist[0].n;
-  return { hist, nearTotal, structuringTotal: structuring.length, structuring: structuring.slice(0, 30), profile };
+  return { profile };
 }
 
 // ---------------------------------------------------------------- resilience
@@ -180,8 +164,6 @@ function completeness() {
   const expectedContinue = Math.round(Object.keys(trunc).reduce((s, k) => s + trunc[k] * pContinue[k].share, 0));
   const truncated = new Set(M.filter(([, m]) => m.truncated).map(([g]) => g));
   const transitToTruncated = new Set(edges.filter((e) => truncated.has(e.dst) && role(e.src) === "transit").map((e) => e.src)).size;
-  const near = new Map<string, number>();
-  for (const t of transactions) if (t.sumKzt >= 5000 && t.sumKzt < 6000) near.set(t.src, (near.get(t.src) ?? 0) + 1);
   return {
     seedNoOut: M.filter(([, m]) => m.is_seed && m.out_deg === 0).length,
     truncated: truncated.size,
@@ -191,7 +173,6 @@ function completeness() {
     expectedContinue,
     transitToTruncated,
     consolidators: M.filter(([, m]) => m.role === "consolidator").length,
-    structuringSenders: [...near.values()].filter((n) => n >= 3).length,
   };
 }
 

@@ -148,10 +148,6 @@ export type RoutesAnalytics = {
 }
 
 export type AnomaliesAnalytics = {
-  hist: { from: number; n: number }[]
-  nearTotal: number
-  structuringTotal: number
-  structuring: { src: Gid; isSeed: boolean; role: Role | null; n: number; kzt: number; dsts: number; days: number }[]
   profile: { gid: Gid; depth: number; inKzt: number; depthMedian: number; z: number; role: Role; inDeg: number; outDeg: number; passThrough: number | null }[]
 }
 
@@ -166,7 +162,6 @@ export type CompletenessAnalytics = {
   expectedContinue: number
   transitToTruncated: number
   consolidators: number
-  structuringSenders: number
 }
 
 // ---------------------------------------------------------------- /api/assistant
