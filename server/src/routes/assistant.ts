@@ -5,7 +5,7 @@ import { runTool, toolSchemas } from "../data/tools";
 // External LLM (OpenAI Responses API) is used only here: it picks tools and phrases the answer.
 // Roles, priorities and every number come from the deterministic tools. Key: OPENAI_API_KEY (never logged).
 const MODEL = process.env.OPENAI_MODEL ?? "gpt-5.6-sol";
-const system = (period: [string, string] | null) => `Ты — ассистент AML-аналитика в инструменте «Граф денег» (обезличенная выгрузка переводов${period ? ` за ${period[0]} — ${period[1]}` : ""}).
+const system = (period: [string, string] | null) => `Ты — ассистент AML-аналитика в инструменте Moneylai (обезличенная выгрузка переводов${period ? ` за ${period[0]} — ${period[1]}` : ""}).
 Отвечай по-русски, кратко, списком фактов. Любое число и любой gid бери только из результатов инструментов; если данных нет — так и скажи.
 Роли и приоритет уже посчитаны пайплайном, не переоценивай их. Все выводы — гипотезы для проверки («признаки консолидации»), никогда не утверждай виновность.
 Пиши gid полностью (18 цифр), суммы — в тенге с пробелами между разрядами.`;

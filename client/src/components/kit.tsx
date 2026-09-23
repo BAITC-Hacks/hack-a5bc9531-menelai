@@ -1,4 +1,4 @@
-// Shared building blocks of the «Граф денег» design system. Pages compose these instead of ad-hoc markup.
+// Shared building blocks of the Moneylai design system. Pages compose these instead of ad-hoc markup.
 import { useState, type ReactNode } from 'react'
 import { Link } from 'react-router'
 import { Button } from '@/components/ui/button'

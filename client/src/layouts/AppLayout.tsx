@@ -88,8 +88,8 @@ export default function AppLayout() {
     <a href="#main-content" className="skip-link">Перейти к содержимому</a>
     <header className="sticky top-0 z-40 border-b bg-card/95 backdrop-blur-md">
       <div className="mx-auto flex max-w-[1320px] flex-wrap items-center gap-x-6 gap-y-2 px-4 py-2.5 md:px-6">
-        <Link to="/" aria-label="Граф денег — главная" className="flex shrink-0 items-center gap-2.5 rounded-md">
-          <Logo /><span className="font-heading text-[15px] font-bold tracking-tight">Граф денег</span>
+        <Link to="/" aria-label="Moneylai — главная" className="flex shrink-0 items-center gap-2.5 rounded-md">
+          <Logo /><span className="font-heading text-[15px] font-bold tracking-tight">Moneylai</span>
         </Link>
         <nav aria-label="Разделы" className="order-3 -mb-2.5 flex w-full min-w-0 gap-0.5 overflow-x-auto lg:order-none lg:mb-0 lg:w-auto">
           {NAV.map(({ to, label, end }) => <NavLink key={to} to={to} end={end} className={({ isActive }) => cn('relative flex min-h-11 shrink-0 items-center border-b-2 px-3 text-sm transition-colors', (isActive || to === '/network' && ['/graph', '/clusters'].includes(pathname)) ? 'border-primary font-medium text-foreground' : 'border-transparent text-muted-foreground hover:text-primary')}>

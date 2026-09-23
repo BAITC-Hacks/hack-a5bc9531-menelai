@@ -1,7 +1,7 @@
 [project]
 name = "hackalem-menelai-pipeline"
 version = "0.1.0"
-description = "Граф денег (AML): воспроизводимый пайплайн ролей, кластеров и приоритета"
+description = "Moneylai (AML): воспроизводимый пайплайн ролей, кластеров и приоритета"
 requires-python = ">=3.12"
 dependencies = [
     "pandas>=2.2",
