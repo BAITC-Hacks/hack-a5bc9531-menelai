@@ -9,7 +9,7 @@ type Step = {
   role: Role
   rule: string
   source: string
-  chips?: { label: string; key: string; fmt: (v: number) => string }[]
+  chips?: { label: string | ((t: Record<string, number>) => string); key: string; fmt: (v: number) => string }[]
 }
 
 const STEPS: Step[] = [
@@ -22,13 +22,14 @@ const STEPS: Step[] = [
   {
     n: 1,
     role: 'coordinator',
-    rule: 'и собирает, и раздаёт: плательщиков и получателей достаточно, есть связь с seed (цикл, несколько seed выше по потоку или seed от seed), посредничество высокое',
-    source: 'ТЗ: кандидат в организаторы; посредничество — перцентиль среди узлов с входом и выходом',
+    rule: 'и собирает, и раздаёт: плательщиков и получателей достаточно, есть связь с seed (несколько seed выше по потоку или seed от seed) или участие в цикле, посредничество высокое, оборот не мелкий',
+    source: 'ТЗ: кандидат в организаторы; посредничество — перцентиль среди узлов с входом и выходом; оборот — тот же p80, что у консолидатора',
     chips: [
       { label: 'плательщиков ≥', key: 'coord_in_deg', fmt: num },
       { label: 'получателей ≥', key: 'coord_out_deg', fmt: num },
-      { label: 'seed выше по потоку ≥', key: 'coord_seed_up', fmt: num },
+      { label: 'seed выше по потоку (или цикл) ≥', key: 'coord_seed_up', fmt: num },
       { label: 'посредничество ≥', key: 'coord_betw_thr', fmt: (v) => dec(v, 5) },
+      { label: 'оборот ≥', key: 'coord_min_kzt', fmt: kzt },
     ],
   },
   {
@@ -62,13 +63,13 @@ const STEPS: Step[] = [
       { label: 'пропуск от', key: 'tr_pass_lo', fmt: (v) => dec(v) },
       { label: 'до', key: 'tr_pass_hi', fmt: (v) => dec(v) },
       { label: 'вход ≥', key: 'tr_in_kzt', fmt: kzt },
-      { label: 'вывод ≤ 2 дн. ≥', key: 'tr_fast_min', fmt: pct },
+      { label: (t) => `вывод ≤ ${t.fast_days} дн. ≥`, key: 'tr_fast_min', fmt: pct },
     ],
   },
   {
     n: 5,
     role: 'terminal',
-    rule: 'колено 1–3, узел не помечен границей обхода, дальше уходит малая доля или выхода нет вовсе, вход не мелкий, и это не seed',
+    rule: 'колено от 1 до предпоследнего (вне границы обрыва обхода), дальше уходит малая доля или выхода нет вовсе, вход не мелкий, и это не seed',
     source: 'ТЗ: деньги приходят и остаются; порог ~p80 отсекает раздувание роли',
     chips: [
       { label: 'вход ≥', key: 'term_in_kzt', fmt: kzt },
@@ -91,7 +92,7 @@ async function loadMethod() {
 export default function RulesPage() {
   const { data, error, reload } = useApi(loadMethod)
   if (!data) return <LoadState error={error} reload={reload} />
-  const meta = data.meta as typeof data.meta & { no_data_weight?: number; weak_seed_priority_mult?: number }
+  const meta = data.meta
 
   return (
     <>
@@ -122,7 +123,7 @@ export default function RulesPage() {
                   {s.chips && <div className="flex flex-wrap gap-1.5">
                     {s.chips.map((c) => {
                       const v = meta.thresholds[c.key]
-                      return <span key={c.label} className="rounded-md border bg-panel-2 px-2 py-1 text-xs text-ink-2">{c.label} <span className="font-mono font-medium text-foreground tnum">{v == null ? '—' : c.fmt(v)}</span></span>
+                      return <span key={c.key} className="rounded-md border bg-panel-2 px-2 py-1 text-xs text-ink-2">{typeof c.label === 'string' ? c.label : c.label(meta.thresholds)} <span className="font-mono font-medium text-foreground tnum">{v == null ? '—' : c.fmt(v)}</span></span>
                     })}
                   </div>}
                   <p className="text-xs leading-relaxed text-muted-foreground">{s.source}</p>
@@ -138,7 +139,7 @@ export default function RulesPage() {
         <Panel title="Оценка по правилу" eyebrow="сила признаков">
           <div className="grid gap-3 text-sm leading-relaxed text-ink-2">
             <p>Для найденной роли оценка учитывает запас относительно порогов: от 0,5 у границы до 1 при выраженных признаках.</p>
-            <p>Для периферии оценка зависит от того, насколько близко сработало другое правило. При недостатке данных значение 1 означает уверенность в ограничении данных, а не в отсутствии риска.</p>
+            <p>Для периферии оценка тем ниже, чем ближе узел к какой-то роли. При недостатке данных оценка {dec(meta.no_data_role_score)}: роль здесь — заглушка, а не вывод об отсутствии риска.</p>
             <p className="rounded-lg bg-primary/5 p-3 text-primary">Оценка 0,8 не означает вероятность причастности 80 %. Это характеристика правила.</p>
           </div>
         </Panel>
@@ -155,7 +156,12 @@ export default function RulesPage() {
                 </div>
               ))}
             </dl>
-            <p className="border-t pt-3 text-xs leading-relaxed">При недостатке данных вес — {dec(meta.no_data_weight)}. При слабой связи со средствами seed применяется множитель {dec(meta.weak_seed_priority_mult)}. Эти поправки уже учтены в очереди.</p>
+            <ul className="grid gap-1.5 border-t pt-3 text-xs leading-relaxed">
+              <li>Периферия: {dec(meta.role_weight.peripheral)} + {dec(meta.peripheral_near_bonus)} × доля выполненных условий ближайшей роли (меньше 0,5 — ниже базового веса любой роли). При недостатке данных — {dec(meta.no_data_weight)}.</li>
+              <li>Слабая связь со средствами seed (меньше {pct(meta.thresholds.weak_seed_share)}): × {dec(meta.weak_seed_priority_mult)} — у подозрительной роли (возможен легальный контрагент) и у периферии.</li>
+              <li>Seed-клиенты: × {dec(meta.seed_priority_mult)} — они уже известны, фокус очереди на новых узлах.</li>
+              <li>Эти поправки уже учтены в очереди.</li>
+            </ul>
           </div>
         </Panel>
       </div>

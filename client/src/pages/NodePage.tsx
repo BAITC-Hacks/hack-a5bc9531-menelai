@@ -4,7 +4,7 @@ import { ArrowLeftIcon, ArrowRightIcon, CheckIcon, CopyIcon, WaypointsIcon } fro
 import { Button } from '@/components/ui/button'
 import { Eyebrow, GidLink, HypTag, LoadState, PageHeader, Panel, PriorityBar, RoleChip, SeedTag, StatStrip } from '@/components/kit'
 import { ROLE } from '@/lib/roles'
-import { api, type Edge, type Gid, type Link as MoneyLink, type Metrics } from '@/lib/api'
+import { api, type Edge, type Gid, type Link as MoneyLink, type Meta, type Metrics } from '@/lib/api'
 import { dayMonth, dec, gidTail, kzt, num, pct } from '@/lib/format'
 import { useApi } from '@/lib/use-api'
 
@@ -17,12 +17,12 @@ export default function NodePage() {
       <Link to="/top" className="inline-flex min-h-11 w-fit items-center gap-2 rounded-md text-sm text-ink-2 hover:text-gold focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none">
         <ArrowLeftIcon className="size-4" aria-hidden /> К приоритетам
       </Link>
-      <NodeCard key={gid} gid={gid} thresholds={meta?.thresholds} />
+      <NodeCard key={gid} gid={gid} meta={meta ?? undefined} />
     </>
   )
 }
 
-function NodeCard({ gid, thresholds }: { gid: Gid; thresholds?: Record<string, number> }) {
+function NodeCard({ gid, meta }: { gid: Gid; meta?: Meta }) {
   const { data, error, reload } = useApi(() => api.node(gid), [gid])
   // The server answers 404 with {error: "unknown gid …"}; api.get rethrows that text.
   if (error?.startsWith('unknown gid')) return <NotFound gid={gid} />
@@ -72,10 +72,10 @@ function NodeCard({ gid, thresholds }: { gid: Gid; thresholds?: Record<string, n
             { value: num(m.n_seed_upstream), label: 'исходных клиентов выше по цепочке' },
           ]} />
           <div className="grid min-w-0 items-start gap-4 lg:grid-cols-[minmax(0,1.3fr)_minmax(0,1fr)]">
-            <WhyPanel m={m} thresholds={thresholds} />
+            <WhyPanel m={m} meta={meta} />
             <aside className="grid min-w-0 content-start gap-4">
               <Warnings m={m} />
-              <MetricGrid m={m} />
+              <MetricGrid m={m} t={meta?.thresholds} />
             </aside>
           </div>
           <Movement m={m} gid={gid} />
@@ -160,8 +160,9 @@ const pass = (x: number) => dec(x)
 const betw = (x: number) => dec(x, 5)
 
 /** Rule ↔ fact rows per role: threshold keys mirror pipeline/run.py `T`, rule wording — RULES.md §1. No verdicts here. */
-function ruleRows(m: Metrics): Row[] {
+function ruleRows(m: Metrics, t?: Record<string, number>): Row[] {
   const passFact = m.is_seed || m.truncated ? passThroughDisplay(m) : m.pass_through == null ? 'н/д (вход 0)' : pass(m.pass_through)
+  const tv = (key: string) => (t?.[key] == null ? '…' : num(t[key]))
   switch (m.role) {
     case 'coordinator':
       return [
@@ -174,13 +175,19 @@ function ruleRows(m: Metrics): Row[] {
           fact: `${num(m.n_seed_upstream)}${m.in_cycle ? ' · цикл' : ''}`,
         },
         { rule: 'посредничество ≥ p95', key: 'coord_betw_thr', fmt: betw, fact: betw(m.betweenness) },
+        { rule: 'оборот (больший из входа и выхода) ≥', key: 'coord_min_kzt', fmt: kzt, fact: kzt(Math.max(m.in_kzt, m.out_kzt)) },
       ]
     case 'consolidator':
       return [
         { rule: 'плательщиков ≥', key: 'cons_in_deg', fmt: deg, fact: num(m.in_deg) },
         { rule: 'пропуск <', key: 'cons_pass_max', fmt: pass, fact: passFact },
         { rule: 'вход ≥', key: 'cons_in_kzt', fmt: kzt, fact: kzt(m.in_kzt) },
-        { rule: 'крупнейший плательщик <', key: 'cons_max_payer', fmt: pct, fact: pct((m as Metrics & { max_payer_share?: number | null }).max_payer_share) },
+        {
+          rule: 'доля крупнейшего плательщика <',
+          key: 'cons_max_payer',
+          fmt: pct,
+          fact: m.max_payer_share == null ? 'н/д' : pct(m.max_payer_share),
+        },
       ]
     case 'distributor':
       return [
@@ -192,11 +199,11 @@ function ruleRows(m: Metrics): Row[] {
         { rule: 'пропуск от', key: 'tr_pass_lo', fmt: pass, fact: passFact },
         { rule: 'пропуск до', key: 'tr_pass_hi', fmt: pass, fact: passFact },
         { rule: 'вход ≥', key: 'tr_in_kzt', fmt: kzt, fact: kzt(m.in_kzt) },
-        { rule: 'вывод ≤ 2 дн. ≥', key: 'tr_fast_min', fmt: pct, fact: pct(m.fast_out_share) },
+        { rule: `вывод ≤ ${tv('fast_days')} дн. после входа ≥`, key: 'tr_fast_min', fmt: pct, fact: pct(m.fast_out_share) },
       ]
     case 'terminal':
       return [
-        { rule: 'колено 1–3, вне границы обрыва обхода', fact: `колено ${m.depth}` },
+        { rule: `колено 1–${t?.max_depth == null ? '…' : num(t.max_depth - 1)} (исходящие выгружались)`, fact: `колено ${m.depth}` },
         { rule: 'пропуск < (или выхода нет)', key: 'term_pass_max', fmt: pass, fact: passFact },
         { rule: 'вход ≥', key: 'term_in_kzt', fmt: kzt, fact: kzt(m.in_kzt) },
       ]
@@ -205,10 +212,21 @@ function ruleRows(m: Metrics): Row[] {
   }
 }
 
-function peripheralNote(m: Metrics) {
+function peripheralNote(m: Metrics, meta?: Meta) {
   if (m.truncated) return `Недостаточно данных: узел на колене ${m.depth}, исходящие не собирались — обход оборван. Периферия здесь не означает отсутствие риска.`
   if (m.is_seed && m.in_deg === 0 && m.out_deg === 0) return 'Недостаточно данных: seed без единого ребра в графе. Определить роль по этой выгрузке нельзя; периферия не означает отсутствие риска.'
-  return 'Ни одно правило каскада (координатор → консолидатор → распределитель → транзит → конечный) не сработало. Уверенность тем ниже, чем ближе узел к какой-то роли.'
+  const weak = meta != null && m.seed_share < meta.thresholds.weak_seed_share
+  const w = meta && (meta.role_weight.peripheral + meta.peripheral_near_bonus * m.near_share) * (weak ? meta.weak_seed_priority_mult : 1)
+  const near =
+    m.nearest_role && m.nearest_role !== 'peripheral'
+      ? ` Ближайшая роль — ${ROLE[m.nearest_role].label}: выполнено ${pct(m.near_share)} её условий.` +
+        (meta && w != null
+          ? ` Вес в приоритете: (${dec(meta.role_weight.peripheral)} + ${dec(meta.peripheral_near_bonus)} × ${dec(m.near_share)})` +
+            (weak ? ` × ${dec(meta.weak_seed_priority_mult)} (seed-денег ${pct(m.seed_share)})` : '') +
+            ` = ${dec(w)}.`
+          : '')
+      : ''
+  return `Ни одно правило каскада (координатор → консолидатор → распределитель → транзит → конечный) не сработало. Уверенность в «периферии» тем ниже, чем ближе узел к какой-то роли.${near}`
 }
 
 /** Wraps numbers in the verbatim evidence string so they stand out; the text itself is untouched. */
@@ -229,8 +247,9 @@ function Evidence({ text }: { text: string }) {
   )
 }
 
-function WhyPanel({ m, thresholds, className }: { m: Metrics; thresholds?: Record<string, number>; className?: string }) {
-  const rows = ruleRows(m)
+function WhyPanel({ m, meta, className }: { m: Metrics; meta?: Meta; className?: string }) {
+  const thresholds = meta?.thresholds
+  const rows = ruleRows(m, thresholds)
   const insufficientData = m.role === 'peripheral' && (m.truncated || (m.is_seed && m.in_deg === 0 && m.out_deg === 0))
   return (
     <section className={`min-w-0 overflow-hidden rounded-xl border border-l-4 bg-card ${className ?? ''}`} style={{ borderLeftColor: ROLE[m.role].color }}>
@@ -300,7 +319,7 @@ function WhyPanel({ m, thresholds, className }: { m: Metrics; thresholds?: Recor
             </table>
           </div>
         ) : (
-          <p className="text-sm text-ink-2">{peripheralNote(m)}</p>
+          <p className="text-sm text-ink-2">{peripheralNote(m, meta)}</p>
         )}
       </div>
     </section>
@@ -314,10 +333,12 @@ function Warnings({ m }: { m: Metrics }) {
   if (m.is_seed)
     notes.push('Seed: входящие занижены устройством выгрузки (граф строился от seed наружу) — отношение выход/вход и пропуск недостоверны.')
   if (m.truncated) notes.push(`Колено ${m.depth} без исходящих: обход оборван на этом колене, «нет исходящих» ничего не значит.`)
-  else if (!m.is_seed && m.depth >= 1 && m.depth <= 3 && m.out_deg === 0)
+  else if (!m.is_seed && m.depth >= 1 && m.out_deg === 0)
     notes.push(`Колено ${m.depth} без исходящих: исходящие выгружались и их нет — сток в наблюдаемом графе. Остаток на счёте по этим данным неизвестен.`)
   if (m.weak_seed_link)
-    notes.push(`Слабая связь с деньгами seed: доля seed-денег ${pct(m.seed_share)} — роль по структуре, но «окраска» денег низкая.`)
+    notes.push(
+      `Слабая связь с деньгами seed: доля seed-денег ${pct(m.seed_share)} — роль по структуре, но «окраска» денег низкая; возможен легальный контрагент (магазин, работодатель).`,
+    )
   if (!notes.length) return null
   return (
     <section className="grid gap-2 rounded-xl border border-l-4 border-l-gold bg-card p-4" aria-label="Предупреждения о данных">
@@ -407,7 +428,9 @@ function Movement({ m, gid, className }: { m: Metrics; gid: Gid; className?: str
 
 // ---------------------------------------------------------------- metrics & features
 
-function MetricGrid({ m }: { m: Metrics }) {
+function MetricGrid({ m, t }: { m: Metrics; t?: Record<string, number> }) {
+  const days = t?.fast_days == null ? '…' : num(t.fast_days)
+  const hops = t?.seed_up_hops == null ? '…' : num(t.seed_up_hops)
   // Tooltips quote pipeline/RULES.md §0.
   const tiles: [string, string, string][] = [
     ['плательщиков', num(m.in_deg), 'in_deg: от скольких разных клиентов получил'],
@@ -417,10 +440,10 @@ function MetricGrid({ m }: { m: Metrics }) {
     ['пропуск', passThroughDisplay(m), 'pass_through = out_kzt / in_kzt — доля полученного, ушедшая дальше (н/д, если вход 0)'],
     ['доля seed-денег', pct(m.seed_share), 'seed_share: модель «окрашенных денег» — доля средств, предположительно пришедших от seed (пропорциональное смешивание; невидимый вход считается «чистым»)'],
     ['seed-деньги на входе', kzt(m.seed_money_in), 'seed_money_in: сумма средств, предположительно пришедших от seed, ₸'],
-    ['seed выше по потоку', num(m.n_seed_upstream), 'n_seed_upstream: сколько разных seed достигают узла по направленным путям ≤ 4 шага'],
+    ['seed выше по потоку', num(m.n_seed_upstream), `n_seed_upstream: сколько разных seed достигают узла по направленным путям ≤ ${hops} шага`],
     ['посредничество', dec(m.betweenness, 5), 'betweenness: посредничество в направленном графе (без весов)'],
     ['PageRank', dec(m.pagerank, 5), 'pagerank: взвешенный по сумме переводов'],
-    ['быстрый выход ≤ 2 дн.', pct(m.fast_out_share), 'fast_out_share: доля исходящей суммы, ушедшей в течение ≤ 2 дней после входящего перевода'],
+    [`быстрый выход ≤ ${days} дн.`, pct(m.fast_out_share), `fast_out_share: доля исходящей суммы, ушедшей в течение ≤ ${days} дн. после входящего перевода`],
     ['дней синхронных входов', num(m.sync_in_events), 'sync_in_events: число дней, когда ≥ 3 разных плательщиков перевели узлу в один день'],
     ['участие в цикле', m.in_cycle ? 'да' : 'нет', 'in_cycle: участвует в простом цикле длиной ≤ 5'],
   ]
@@ -500,8 +523,8 @@ function EdgeTable({ title, edges, peer }: { title: string; edges: Edge[]; peer:
             <th scope="col" className="py-2 pr-4 text-right font-medium">
               переводов
             </th>
-            <th scope="col" className="py-2 text-right font-medium">
-              колено
+            <th scope="col" className="py-2 text-right font-medium" title="edges.depth: на каком колене обхода найден перевод (колено отправителя + 1)">
+              колено ребра
             </th>
           </tr>
         </thead>

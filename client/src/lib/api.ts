@@ -85,6 +85,14 @@ export type Metrics = {
   evidence: string
   /** pipeline v2: structural role, but low share of seed money */
   weak_seed_link?: boolean
+  /** share of the biggest payer in the inflow; null without inflow */
+  max_payer_share: number | null
+  /** rule 0: role can't be determined from the data (crawl cut-off or seed without edges) */
+  no_data: boolean
+  /** peripheral: closest role of the cascade; for other roles — the role itself; '' for no_data */
+  nearest_role: Role | ''
+  /** peripheral: share of the nearest role's conditions that hold; 1 for assigned roles, 0 for no_data */
+  near_share: number
   cycles: Gid[][]
   sync_days: string[]
   top_in: Link[]
@@ -128,6 +136,11 @@ export type Meta = {
   thresholds: Record<string, number>
   role_weight: Record<Role, number>
   role_counts: Record<Role, number>
+  no_data_weight: number
+  weak_seed_priority_mult: number
+  seed_priority_mult: number
+  peripheral_near_bonus: number
+  no_data_role_score: number
 }
 
 // ---------------------------------------------------------------- /api/analytics (server/src/data/analytics.ts)
@@ -154,7 +167,7 @@ export type RoutesAnalytics = {
 }
 
 export type AnomaliesAnalytics = {
-  profile: { gid: Gid; depth: number; inKzt: number; depthMedian: number; z: number; role: Role; inDeg: number; outDeg: number; passThrough: number | null }[]
+  profile: { gid: Gid; depth: number; inKzt: number; depthMedian: number; z: number; role: Role; noData: boolean; inDeg: number; outDeg: number; passThrough: number | null }[]
 }
 
 export type ResiliencePoint = { N: number; components: number; largestNodes: number; largestShare: number; removedShare: number }
@@ -174,7 +187,7 @@ export type CompletenessAnalytics = {
 
 export type AssistantStatus = { llm: boolean; model: string; tools: string[] }
 export type AssistantStep = { tool: string; args: unknown; ok: boolean; summary: string }
-export type AssistantAnswer = { answer: string; trace: AssistantStep[]; model: string }
+export type AssistantAnswer = { answer: string; trace: AssistantStep[]; model: string; unverified: Gid[] }
 
 // ---------------------------------------------------------------- /api/datasets
 

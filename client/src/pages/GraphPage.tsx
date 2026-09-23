@@ -69,12 +69,13 @@ function GraphView({ model }: { model: Model }) {
   const canvas = useRef<CanvasHandle>(null)
   const searchForm = useRef<HTMLFormElement>(null)
   const [colorBy, setColorBy] = useState<ColorBy>('role')
-  const [flow, setFlow] = useState(true)
   const [roles, setRoles] = useState<Set<Role>>(() => new Set(ROLES))
   const [seedOnly, setSeedOnly] = useState(false)
-  const reduced = useMemo(() => matchMedia('(prefers-reduced-motion: reduce)').matches, [])
+  // reduced motion: particles start off, but the user can still turn them on; arrows show direction either way
+  const [flow, setFlow] = useState(() => !matchMedia('(prefers-reduced-motion: reduce)').matches)
 
-  // ?q= is a full gid or its tail (the header search sends tails here)
+  // ?q= is a full gid or its tail (the header search sends tails here). Almost every gid ends in «100»,
+  // so short tails are ambiguous: several matches are listed for the user to pick, never chosen silently.
   const q = (params.get('q') ?? '').replace(/\D/g, '')
   const matches = useMemo(() => {
     if (!q) return []
@@ -135,7 +136,9 @@ function GraphView({ model }: { model: Model }) {
   const onSearch = (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault()
     const t = String(new FormData(e.currentTarget).get('gid') ?? '').replace(/\D/g, '')
-    if (t) update((p) => p.set('q', t), null)
+    if (!t) return
+    if (t === q && sel != null) canvas.current?.focus(sel) // same query: params don't change, so re-center here
+    else update((p) => p.set('q', t), null)
   }
   const resetView = () => {
     update((p) => {
@@ -186,11 +189,9 @@ function GraphView({ model }: { model: Model }) {
           </div>
           <button
             type="button"
-            aria-pressed={flow && !reduced}
-            disabled={reduced}
+            aria-pressed={flow}
             onClick={() => setFlow((f) => !f)}
-            title={reduced ? 'Отключено: в системе включено снижение движения' : undefined}
-            className={cn(seg(flow && !reduced), 'border disabled:opacity-50')}
+            className={cn(seg(flow), 'border')}
           >
             Потоки денег
           </button>
@@ -299,7 +300,7 @@ function GraphView({ model }: { model: Model }) {
               ref={canvas}
               model={model}
               colorBy={colorBy}
-              flow={flow && !reduced}
+              flow={flow}
               active={active}
               selected={sel}
               onSelect={(i) => select(i, true)}

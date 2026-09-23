@@ -172,6 +172,12 @@ function Message({ m }: { m: Msg }) {
       ) : m.res ? (
         <div className="grid max-w-[92%] gap-3 rounded-xl border bg-card px-4 py-3.5">
           <Markdown text={m.res.answer || 'Модель вернула пустой ответ.'} />
+          {m.res.unverified.length > 0 && (
+            <p role="alert" className="rounded-md border border-destructive/50 bg-destructive/10 px-3 py-2 text-xs text-foreground">
+              В ответе есть gid, которых не вернул ни один инструмент — проверьте их вручную:{' '}
+              <span className="font-mono break-all">{m.res.unverified.join(', ')}</span>
+            </p>
+          )}
           <Trace steps={m.res.trace} />
           <div className="flex flex-wrap items-center gap-2">
             <HypTag>гипотеза — проверить</HypTag>

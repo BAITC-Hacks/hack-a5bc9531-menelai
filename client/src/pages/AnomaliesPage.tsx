@@ -9,9 +9,9 @@ export default function AnomaliesPage() {
   const { data, error, reload } = useApi(api.anomalies)
   if (!data) return <LoadState error={error} reload={reload} />
 
-  const peripheralShare = data.profile.length
-    ? data.profile.filter((p) => p.role === 'peripheral' || p.role === 'terminal').length
-    : 0
+  // «no data» nodes (crawl cut-off) can't get a role by definition; terminal is a role for a big inflow that stays
+  const withData = data.profile.filter((p) => !p.noData)
+  const noRole = withData.filter((p) => p.role === 'peripheral').length
 
   return (
     <>
@@ -50,9 +50,10 @@ export default function AnomaliesPage() {
                   <td className="py-2 pr-3 text-right font-mono tnum">{kzt(p.inKzt)}</td>
                   <td className="py-2 pr-3 text-right font-mono tnum text-muted-foreground">{kzt(p.depthMedian)}</td>
                   <td className="py-2 pr-3 text-right font-mono tnum text-gold">{dec(p.z)}</td>
-                  <td className="py-2 pr-3">{p.role && <RoleChip role={p.role} />}</td>
+                  <td className="py-2 pr-3">{p.noData ? <span className="text-xs text-muted-foreground">нет данных</span> : <RoleChip role={p.role} />}</td>
                   <td className="py-2 pr-3 text-ink-2">
-                    {num(p.inDeg)} плат., {num(p.outDeg)} получ., пропуск {p.depth === 0 ? 'недостоверно для seed' : p.depth === 4 ? 'неизвестно' : p.passThrough == null ? '—' : dec(p.passThrough)}
+                    {num(p.inDeg)} плат., {num(p.outDeg)} получ., пропуск {p.depth === 0 ? 'недостоверно для seed' : p.noData ? 'неизвестно' : p.passThrough == null ? '—' : dec(p.passThrough)}
+                    {p.noData && ' · обход оборван: исходящие не выгружались'}
                   </td>
                 </tr>
               ))}
@@ -62,9 +63,10 @@ export default function AnomaliesPage() {
         <p className="mt-3 flex items-start gap-2 text-[13px] text-ink-2">
           <HypTag>вопрос к правилам</HypTag>
           <span>
-            Из {num(data.profile.length)} показанных узлов {num(peripheralShare)} размечены как «{ROLE.peripheral.label.toLowerCase()}» или «
-            {ROLE.terminal.label.toLowerCase()}» — то есть выброс по деньгам не привёл к более заметной роли. Возможно, порогам ролей стоит
-            учитывать масштаб входа относительно колена, а не только абсолютные суммы.
+            Из {num(data.profile.length)} показанных узлов у {num(data.profile.length - withData.length)} роль не определить: обход оборван на
+            последнем колене, их исходящих в выгрузке нет. Из остальных {num(withData.length)} без роли («
+            {ROLE.peripheral.label.toLowerCase()}») — {num(noRole)}: крупный вход сам по себе роль не даёт, если не выполнены остальные условия
+            правил (число плательщиков, пропуск, связь с seed).
           </span>
         </p>
       </Panel>

@@ -185,7 +185,6 @@ export function buildAnalytics({ nodes, edges, transactions, results }: GraphDat
       expectedContinue,
       transitToTruncated,
       consolidators: M.filter(([, m]) => m.role === "consolidator").length,
-      maxDepth,
     };
   }
 

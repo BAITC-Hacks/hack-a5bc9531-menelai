@@ -79,7 +79,6 @@ export default function NetworkCanvas(props: Props) {
     const ctx = cv.getContext('2d')!
     const M = model
     const N = M.nodes.length
-    const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches
     const cs = getComputedStyle(document.documentElement)
     const v = (name: string) => cs.getPropertyValue(name).trim()
     const C = {
@@ -176,7 +175,7 @@ export default function NetworkCanvas(props: Props) {
       const dt = Math.min(0.05, (now - last) / 1000)
       last = now
       const P = p.current
-      const animate = P.flow && !reduce
+      const animate = P.flow
       if (!animate && !dirty.current) return
       dirty.current = false
 
@@ -197,7 +196,10 @@ export default function NetworkCanvas(props: Props) {
 
       // edges: two batched paths (full / muted), ego edges drawn on top
       ctx.lineWidth = Math.max(0.4, Math.min(1.2, (k / baseK) * 0.6))
-      ctx.strokeStyle = C.ink
+      ctx.strokeStyle = ctx.fillStyle = C.ink
+      const z0 = zs()
+      // zoomed in: arrowheads on the drawn edges, so direction is visible without the animation
+      const arrows = k >= baseK * 1.8
       for (const bright of [false, true]) {
         ctx.globalAlpha = bright ? 0.22 : 0.045
         ctx.beginPath()
@@ -210,6 +212,16 @@ export default function NetworkCanvas(props: Props) {
           ctx.lineTo(X(d), Y(d))
         }
         ctx.stroke()
+        if (bright && arrows) {
+          ctx.globalAlpha = 0.75
+          ctx.beginPath()
+          for (let e = 0; e < M.src.length; e++) {
+            const s = M.src[e], d = M.dst[e]
+            if (active[s] !== 1 || active[d] !== 1 || (sel != null && (s === sel || d === sel))) continue
+            arrowHead(X(s), Y(s), X(d), Y(d), M.rad[d] * z0 + 1.5, 6)
+          }
+          ctx.fill()
+        }
       }
       ctx.globalAlpha = 1
       if (sel != null) {
@@ -221,12 +233,8 @@ export default function NetworkCanvas(props: Props) {
           ctx.strokeStyle = ctx.fillStyle = col
           ctx.lineWidth = Math.max(0.8, Math.min(4, Math.log10(M.edges[e].sumKzt) - 3.3))
           ctx.beginPath(); ctx.moveTo(x1, y1); ctx.lineTo(x2, y2); ctx.stroke()
-          const ang = Math.atan2(y2 - y1, x2 - x1), r = M.rad[d] * zs() + 2
-          const ax = x2 - Math.cos(ang) * r, ay = y2 - Math.sin(ang) * r
           ctx.beginPath()
-          ctx.moveTo(ax, ay)
-          ctx.lineTo(ax - Math.cos(ang - 0.45) * 7, ay - Math.sin(ang - 0.45) * 7)
-          ctx.lineTo(ax - Math.cos(ang + 0.45) * 7, ay - Math.sin(ang + 0.45) * 7)
+          arrowHead(x1, y1, x2, y2, M.rad[d] * zs() + 2, 7)
           ctx.fill()
         }
         ctx.globalAlpha = 1
@@ -312,6 +320,16 @@ export default function NetworkCanvas(props: Props) {
         ctx.strokeText(gidTail(M.nodes[i].gid), x, y)
         ctx.fillText(gidTail(M.nodes[i].gid), x, y)
       }
+    }
+
+    /** adds a filled arrowhead (tip r px before (x2, y2), sides `size` px) to the current path */
+    function arrowHead(x1: number, y1: number, x2: number, y2: number, r: number, size: number) {
+      const ang = Math.atan2(y2 - y1, x2 - x1)
+      const ax = x2 - Math.cos(ang) * r, ay = y2 - Math.sin(ang) * r
+      ctx.moveTo(ax, ay)
+      ctx.lineTo(ax - Math.cos(ang - 0.45) * size, ay - Math.sin(ang - 0.45) * size)
+      ctx.lineTo(ax - Math.cos(ang + 0.45) * size, ay - Math.sin(ang + 0.45) * size)
+      ctx.closePath()
     }
 
     // interaction; hit-test by brute force (2 248 nodes is cheap)
@@ -475,7 +493,10 @@ export default function NetworkCanvas(props: Props) {
               <div className={row}><span className="h-0.5 w-3.5 shrink-0 rounded-full" style={{ background: IN_BLUE }} />входящие переводы</div>
             </>
           ) : (
-            flow && <div className={row}><span className="h-0.5 w-3.5 shrink-0 rounded-full" style={{ background: OUT_GOLD }} />поток денег, частота ~ сумма</div>
+            <>
+              {flow && <div className={row}><span className="h-0.5 w-3.5 shrink-0 rounded-full" style={{ background: OUT_GOLD }} />поток денег, частота ~ сумма</div>}
+              <div className={row}><span className="w-3.5 shrink-0 text-center leading-none" aria-hidden>▸</span>стрелка — направление перевода (при приближении)</div>
+            </>
           )}
         </div>
       </details>
