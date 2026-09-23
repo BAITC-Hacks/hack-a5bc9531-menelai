@@ -1,6 +1,6 @@
 # Контракт: pipeline → out/ → server
 
-Python (`pipeline/run.py`) считает всё и пишет CSV в `out/`. Bun-сервер только читает `out/` и `task/data/*.parquet` и отдаёт JSON. Фронт ходит только в `/api`.
+Python (`pipeline/run.py`) считает всё и пишет CSV и `node_metrics.json` в `out/`. Bun-сервер только читает `out/` (`node_metrics.json`, `clusters.csv`, `top_nodes.csv` — `server/src/data/results.ts`) и `task/data/*.parquet` и отдаёт JSON. Фронт ходит только в `/api`.
 
 Одна команда полного пересчёта:
 
@@ -88,15 +88,6 @@ cd pipeline && uv sync && uv run python run.py   # дефолты: --data ../tas
 - `mutual` — есть обратное ребро dst→src.
 - `back_edge` — `dst_depth <= src_depth`.
 
-## API сервера (читает out/)
+## API сервера
 
-| маршрут | отдаёт |
-|---|---|
-| `GET /api/stats` | как сейчас |
-| `GET /api/graph` | `{ nodes: GraphNode[], edges: Edge[] }`, GraphNode = nodes.parquet + `role, roleScore, clusterId, priorityScore, inKzt, outKzt, inDeg, outDeg` |
-| `GET /api/nodes/:gid` | `{ node: GraphNode, metrics: NodeMetrics, role: { role, roleScore, roleRule, evidence, priorityScore }, in: Edge[], out: Edge[], daily: { date, inKzt, outKzt, inTx, outTx }[] }` |
-| `GET /api/top` | строки top_nodes.csv |
-| `GET /api/clusters` | строки clusters.csv |
-| `GET /api/clusters/:id` | строка clusters.csv + `members: GraphNode[]` |
-
-Имена полей в JSON — camelCase, в CSV — snake_case.
+Маршруты и формат ответов — в таблице API в [README.md](../README.md#api).

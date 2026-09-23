@@ -15,7 +15,7 @@ server/             Bun + Hono API, port 3001
   src/app.ts        Hono app, /api mount, JSON 404/500
   src/routes/       routes/index.ts registers every resource; one file per resource
   src/data/         load.ts reads the parquet files once at startup; types.ts
-  src/data/out.ts   reads the pipeline CSVs from out/ once at startup (env OUT_DIR)
+  src/data/results.ts reads out/node_metrics.json, clusters.csv, top_nodes.csv once at startup (env OUT_DIR)
 client/             Vite + React 19 + TS + Tailwind v4 + shadcn/ui, port 5173
   src/router.tsx    route table (createBrowserRouter)
   src/layouts/      AppLayout: nav + gid search
@@ -23,7 +23,7 @@ client/             Vite + React 19 + TS + Tailwind v4 + shadcn/ui, port 5173
   src/lib/api.ts    typed fetch helpers, mirrors the server contract
 task/data/          edges.parquet, nodes.parquet, transactions.parquet (organizer data, read-only)
 docs/               project docs
-out/                pipeline CSVs (nodes_roles, clusters, top_nodes, node_metrics, edge_metrics); server reads them
+out/                pipeline CSVs (nodes_roles, clusters, top_nodes, node_metrics, edge_metrics) + node_metrics.json; server reads node_metrics.json, clusters.csv, top_nodes.csv
 ```
 
 ## Commands
