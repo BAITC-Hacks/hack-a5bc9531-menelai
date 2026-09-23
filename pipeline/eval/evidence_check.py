@@ -5,7 +5,7 @@ uv run --with openai --with python-dotenv --with pandas --with tabulate python e
 import json, re
 from concurrent.futures import ThreadPoolExecutor
 import pandas as pd
-from llm import call, parse_json, EVAL, SNAP, ROOT
+from llm import call, parse_json, EVAL, SNAP, ROOT, VERSION, SUFFIX
 
 GUILT = re.compile(r"виновн|преступ|отмыв|наркот|дроп|организатор\b|является|причастен|незаконн", re.I)
 num = lambda s: float(s.replace(" ", "").replace(" ", "").replace(",", "."))
@@ -43,7 +43,7 @@ def code_checks(d):
 
 
 def llm_checks(d):
-    rules = (SNAP / "RULES_v1.md").read_text()  # заморожено вместе со снимком
+    rules = (SNAP / f"RULES_{VERSION}.md").read_text()  # заморожено вместе со снимком
     rules = rules[rules.index("## 1."): rules.index("## 2.")] + rules[rules.index("## 5."):]
     cols = ["gid", "role", "evidence", "in_deg", "out_deg", "in_kzt", "out_kzt", "pass_through", "seed_share",
             "n_seed_upstream", "depth", "truncated", "is_seed", "in_cycle", "betweenness", "fast_out_share"]
@@ -79,10 +79,10 @@ def llm_checks(d):
 if __name__ == "__main__":
     d = pd.read_csv(SNAP / "nodes_roles.csv")
     a = code_checks(d)
-    a.to_csv(EVAL / "evidence_code_issues.csv", index=False)
+    a.to_csv(EVAL / f"evidence_code_issues{SUFFIX}.csv", index=False)
     print("код:", len(a), "строк с проблемами");  print(a.issues.str.split("; ").explode().str.split(":").str[0].value_counts().to_string())
     b, errs, nb = llm_checks(d)
-    b.to_csv(EVAL / "evidence_llm_issues.csv", index=False)
+    b.to_csv(EVAL / f"evidence_llm_issues{SUFFIX}.csv", index=False)
     print(f"модель: {len(b)} замечаний по {b.gid.nunique() if len(b) else 0} gid; батчей {nb}, ошибок {len(errs)} {errs}")
     if len(b):
         b["gid"] = b.gid.astype(str)
