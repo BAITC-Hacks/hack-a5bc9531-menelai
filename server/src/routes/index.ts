@@ -2,6 +2,7 @@ import { Hono } from "hono";
 import graph from "./graph";
 import health from "./health";
 import nodes from "./nodes";
+import results from "./results";
 import stats from "./stats";
 import transactions from "./transactions";
 
@@ -10,6 +11,7 @@ export const api = new Hono()
   .route("/stats", stats)
   .route("/graph", graph)
   .route("/transactions", transactions)
-  .route("/nodes", nodes);
+  .route("/nodes", nodes)
+  .route("/", results);
 
 export type AppType = typeof api;
