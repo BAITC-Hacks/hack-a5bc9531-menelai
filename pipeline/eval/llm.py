@@ -1,19 +1,23 @@
-"""Общий вызов OpenAI Responses API с логом usage. Ключ из корневого .env, никогда не печатается."""
-import json, pathlib, threading, time
+"""Общий вызов OpenAI Responses API с логом usage. Ключ из корневого .env, никогда не печатается.
+Снимок выбирается переменной окружения EVAL_SNAP (по умолчанию v1, чтобы не ломать прежние результаты);
+для не-v1 версий raw/usage/выходные файлы задач получают суффикс _<версия>, чтобы не перезаписывать v1."""
+import json, os, pathlib, threading, time
 from dotenv import dotenv_values
 from openai import OpenAI
 
 ROOT = pathlib.Path(__file__).resolve().parents[2]
 EVAL = pathlib.Path(__file__).resolve().parent
-RAW = EVAL / "raw"; RAW.mkdir(exist_ok=True)
-USAGE = EVAL / "usage.jsonl"
-SNAP = EVAL / "snapshot_v1"
+VERSION = os.environ.get("EVAL_SNAP", "v1")
+SUFFIX = "" if VERSION == "v1" else f"_{VERSION}"
+SNAP = EVAL / f"snapshot_{VERSION}"
+RAW = EVAL / ("raw" if VERSION == "v1" else f"raw{SUFFIX}"); RAW.mkdir(exist_ok=True)
+USAGE = EVAL / f"usage{SUFFIX}.jsonl"
 
 client = OpenAI(api_key=dotenv_values(ROOT / ".env")["OPENAI_API_KEY"])
 PRIMARY, FALLBACK = "gpt-5.6-sol", "gpt-5.5"
 # ponytail: цена за 1M токенов — допущение (официального прайса gpt-5.6-sol под рукой нет); reasoning считается как output
 PRICE_IN, PRICE_OUT = 5.0, 40.0
-BUDGET = 19.0
+BUDGET = 19.0 if VERSION == "v1" else 8.0
 _lock = threading.Lock()
 state = {"model": PRIMARY}
 

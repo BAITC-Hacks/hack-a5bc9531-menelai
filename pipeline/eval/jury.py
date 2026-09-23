@@ -5,9 +5,9 @@ import json, sys, re
 from collections import Counter
 from concurrent.futures import ThreadPoolExecutor
 import pandas as pd
-from llm import call, parse_json, EVAL, SNAP, ROOT
+from llm import call, parse_json, EVAL, SNAP, ROOT, VERSION, SUFFIX
 
-RULES = (SNAP / "RULES_v1.md").read_text()  # заморожено: правила, по которым построен snapshot_v1 (RULES.md сменился на v2 в 15:07)
+RULES = (SNAP / f"RULES_{VERSION}.md").read_text()  # заморожено вместе со снимком SNAP
 TZ = (EVAL / "tz_5_9.txt").read_text()
 ROLES = ["coordinator", "consolidator", "distributor", "transit", "terminal", "peripheral"]
 
@@ -59,10 +59,18 @@ def sample():
     for r in ROLES:
         sub = d[d.role == r]
         add(sub.sample(min(5, len(sub)), random_state=42).gid, f"random_{r}")
-    add(d[d.truncated].sample(3, random_state=42).gid, "spec_truncated")
-    add(d[d.is_seed & (d.in_deg + d.out_deg == 0)].sample(3, random_state=42).gid, "spec_seed_isolated")
-    add(d[(d.role == "consolidator") & (d.seed_share < 0.1)].sample(3, random_state=42).gid, "spec_consolidator_lowseed")
-    add(d[(d.role == "terminal") & (d.in_deg <= 2)].nlargest(3, "in_kzt").gid, "spec_terminal_1_2_payers")
+    if VERSION == "v1":
+        add(d[d.truncated].sample(3, random_state=42).gid, "spec_truncated")
+        add(d[d.is_seed & (d.in_deg + d.out_deg == 0)].sample(3, random_state=42).gid, "spec_seed_isolated")
+        add(d[(d.role == "consolidator") & (d.seed_share < 0.1)].sample(3, random_state=42).gid, "spec_consolidator_lowseed")
+        add(d[(d.role == "terminal") & (d.in_deg <= 2)].nlargest(3, "in_kzt").gid, "spec_terminal_1_2_payers")
+    else:
+        # v3: спец-кейсы по просьбе — no_data, weak_seed_link (флаг в node_metrics.json), terminal с max_payer_share >= 0,8
+        metrics = json.loads((SNAP / "node_metrics.json").read_text())
+        weak = d.gid.astype(str).map(lambda g: metrics.get(g, {}).get("weak_seed_link", False))
+        add(d[d.no_data].sample(3, random_state=42).gid, "spec_no_data")
+        add(d[weak].sample(3, random_state=42).gid, "spec_weak_seed_link")
+        add(d[(d.role == "terminal") & (d.max_payer_share >= 0.8)].sample(3, random_state=42).gid, "spec_terminal_max_payer")
     return groups
 
 
@@ -81,7 +89,7 @@ def node_card(gid, d, top, metrics):
 
 def sim():
     groups = sample()
-    (EVAL / "sample_gids.json").write_text(json.dumps({str(k): v for k, v in groups.items()}, indent=1))
+    (EVAL / f"sample_gids{SUFFIX}.json").write_text(json.dumps({str(k): v for k, v in groups.items()}, indent=1))
     d = pd.read_csv(SNAP / "nodes_roles.csv")
     top = pd.read_csv(SNAP / "top_nodes.csv")
     metrics = json.loads((SNAP / "node_metrics.json").read_text())
@@ -113,13 +121,13 @@ def sim():
 
     with ThreadPoolExecutor(8) as ex:
         res = list(ex.map(one, groups))
-    (EVAL / "sim_results.json").write_text(json.dumps(res, ensure_ascii=False, indent=1))
+    (EVAL / f"sim_results{SUFFIX}.json").write_text(json.dumps(res, ensure_ascii=False, indent=1))
     print("готово", len(res))
 
 
 def agg():
-    groups = {int(k): v for k, v in json.loads((EVAL / "sample_gids.json").read_text()).items()}
-    res = json.loads((EVAL / "sim_results.json").read_text())
+    groups = {int(k): v for k, v in json.loads((EVAL / f"sample_gids{SUFFIX}.json").read_text()).items()}
+    res = json.loads((EVAL / f"sim_results{SUFFIX}.json").read_text())
     d = pd.read_csv(SNAP / "nodes_roles.csv").set_index("gid")
     rows = []
     for r in res:
@@ -129,7 +137,7 @@ def agg():
                      "jury_question": r.get("jury_question", ""), "alt_role": r.get("alt_role", ""),
                      "alt_role_why": r.get("alt_role_why", "")})
     t = pd.DataFrame(rows)
-    t.to_csv(EVAL / "sim_table.csv", index=False)
+    t.to_csv(EVAL / f"sim_table{SUFFIX}.csv", index=False)
     print(pd.crosstab(t.role, t.verdict, margins=True).to_markdown())
     # кластеризация вопросов — моделью (строковое совпадение не агрегирует свободный текст)
     qs = "\n".join(f"- [{r.gid} {r.role}] {r.jury_question}" for r in t.itertuples())
@@ -142,7 +150,7 @@ def agg():
 
 Сгруппируй вопросы в не более чем 10 тем по опасности для команды (самые опасные первыми). Для каждой темы: сколько вопросов в неё попало, 2–3 примера gid, формулировка вопроса-представителя, предлагаемый ответ команды на защите (опираясь только на правила и метрики выше) и, если ответа нет, — конкретная правка правила. Верни ТОЛЬКО JSON: {{"themes":[{{"theme":"","count":0,"example_gids":[],"question":"","answer":"","rule_fix":""}}]}}"""
     th = parse_json(call("question_themes", prompt, effort="medium"))
-    (EVAL / "question_themes.json").write_text(json.dumps(th, ensure_ascii=False, indent=1))
+    (EVAL / f"question_themes{SUFFIX}.json").write_text(json.dumps(th, ensure_ascii=False, indent=1))
     print(json.dumps(th, ensure_ascii=False, indent=1)[:3000])
 
 
