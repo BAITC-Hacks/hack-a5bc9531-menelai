@@ -4,7 +4,6 @@ import { CheckIcon, FileUpIcon, Loader2Icon, XIcon } from 'lucide-react'
 import { toast } from 'sonner'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
 import { PageHeader, Panel, RoleChip, RoleStackBar, StatStrip } from '@/components/kit'
 import { api, ROLES, switchDataset, UploadError, type DatasetInfo } from '@/lib/api'
 import { num, periodLabel, plural } from '@/lib/format'
@@ -18,12 +17,18 @@ const FILES = [
 ] as const
 type FileKey = (typeof FILES)[number]['key']
 
+/** Dataset name: upload time on the analyst's clock, dd.mm.yy hh:mm */
+const localStamp = () => {
+  const d = new Date()
+  const two = (n: number) => String(n).padStart(2, '0')
+  return `${two(d.getDate())}.${two(d.getMonth() + 1)}.${two(d.getFullYear() % 100)} ${two(d.getHours())}:${two(d.getMinutes())}`
+}
+
 const errText = (e: unknown) => (e instanceof Error ? e.message : String(e))
 const LOG_KEY = 'upload-log'
 
 export default function UploadPage() {
   const [files, setFiles] = useState<Partial<Record<FileKey, File>>>({})
-  const [name, setName] = useState('')
   const [running, setRunning] = useState(false)
   const [failure, setFailure] = useState<{ message: string; log?: string } | null>(null)
   const list = useApi(api.datasets)
@@ -43,7 +48,7 @@ export default function UploadPage() {
     if (!ready || running) return
     const form = new FormData()
     for (const f of FILES) form.append(f.key, files[f.key]!)
-    if (name.trim()) form.append('name', name.trim())
+    form.append('name', localStamp())
     setRunning(true)
     setFailure(null)
     try {
@@ -78,10 +83,6 @@ export default function UploadPage() {
         </div>
 
         <div className="flex flex-wrap items-end gap-3">
-          <label className="grid w-full gap-1.5 text-[13px] sm:w-auto">
-            <span className="text-muted-foreground">Название (необязательно)</span>
-            <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="например, выгрузка за август" className="w-full sm:w-72" />
-          </label>
           <Button type="submit" className="min-h-11" disabled={!ready || running}>
             Рассчитать роли
           </Button>
