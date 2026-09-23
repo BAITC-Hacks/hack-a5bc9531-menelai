@@ -1,0 +1,55 @@
+handle,functional_role,involvement,is_known,archetype,note
+c2_serik_coord,coordinator,criminal,false,координатор-торговец,собирает выручку с дропов и курьеров и карт других банков; платит курьерам и x_wholesaler; параллельно легальная точка бытовой химии на рынке (смешанный счёт)
+c2_kanat_brother,transit,criminal,false,брат-транзитёр,принимает выручку с карты Даны и курьеров и за 1-2 дня переводит Серику; оформил на себя машину брата
+c2_aigul_wife,terminal,criminal,false,жена-кошелёк,получает крупные суммы от мужа и тратит на семью; мебель и золото; часть уводит на депозит в другой банк
+c2_roza_mother,terminal,criminal,false,мать-хранительница,держит деньги сына на пенсионной карте; собирает взносы родни на той и платит тойхане; одалживает дочери
+c2_drop_dana,transit,criminal,true,дроп-карта,на карту платят покупатели; почти всё в тот же или следующий день уходит Канату; себе оставляет небольшой процент
+c2_drop_bekzat,transit,criminal,true,дроп-студент,принимает оплату от покупателей и сдаёт Серику; делится с Нуржаном; свою долю меняет на USDT
+c2_kur_daulet,peripheral,criminal,true,закладчик,получает оплату за клады от Серика; изредка сам продаёт и сдаёт выручку; помогает двоюродному брату Мирасу
+c2_kur_nurzhan,peripheral,criminal,true,закладчик,получает от Серика и долю от Бекзата; платит за комнату и покупает USDT
+c2_kur_arman,peripheral,criminal,true,закладчик,получает оплату от Серика; сам пользуется другим банком и ставками поэтому исходящих внутри банка почти нет
+c2_kur_ernar,peripheral,criminal,true,закладчик-студент,получает от Серика; мелкую выручку сдаёт Канату; платит за курсы
+c2_kur_miras,peripheral,criminal,true,закладчик-новичок,получает от Серика и от двоюродного брата Даулета; тратит мелочью и через другой банк
+c2_kur_aibek,peripheral,criminal,false,курьер-семьянин,получает оплату от Серика и сдаёт выручку; содержит жену
+c2_kur_temirlan,peripheral,criminal,false,курьер-таксист,получает от Серика и сдаёт выручку Канату; параллельно таксует
+c2_alibek_son,peripheral,legit,false,сын-жених,сын координатора; получает от отца и бабушки на свадьбу и тратит
+c2_madina_bride,peripheral,legit,false,невеста,невеста сына координатора; подготовка к свадьбе
+c2_saltanat_bride_mother,peripheral,legit,false,мать невесты,бытовые траты и своя доля предоплаты тойханы
+c2_asem_kanat_wife,peripheral,legit,false,жена брата,получает от мужа на хозяйство; взнос на той свекрови
+c2_dilnaz_asem_sister,peripheral,legit,false,сестра невестки,бытовые траты и возврат займа сестре
+c2_saule_aigul_sister,peripheral,legit,false,сестра жены,заняла у сестры; аренда квартиры и хозяйство
+c2_marat_saule_husband,peripheral,legit,false,муж сестры жены,ремонт машины; возвращает займ жены своячнице (замыкает цикл)
+c2_raushan_marat_mother,peripheral,legit,false,пенсионерка,аптека и продукты
+c2_nurila_aigul_mother,peripheral,legit,false,тёща координатора,пенсионерка; получает от дочери; взнос на той как кудагай
+c2_bolat_cousin,peripheral,legit,false,двоюродный брат-таксист,занял у Серика на ремонт мотора и возвращает частями; комиссия таксопарку
+c2_zhanar_bolat_wife,peripheral,legit,false,жена Болата,хозяйство и репетитор ребёнку
+c2_klara_zhanar_mother,peripheral,legit,false,пенсионерка,аптека; иногда возвращает дочери
+c2_gulnar_sister,peripheral,legit,false,сестра координатора,заняла у матери на ноутбук сыну и возвращает; взнос на той
+c2_erlan_gulnar_husband,peripheral,legit,false,строитель,зарплата со стройки; хозяйство и займ младшему брату
+c2_asqar_erlan_brother,peripheral,legit,false,младший брат зятя,аренда квартиры; возвращает часть займа брату
+c2_neighbor_maira,peripheral,legit,false,соседка-торговка,овощная точка на рынке; покупает у Серика; мелкие займы с Айгуль и Бибигуль
+c2_neighbor_zhaksylyk,peripheral,legit,false,сосед,покупает на точке; ремонт машины и дома
+c2_himbyt_supplier,consolidator,legit,false,оптовик бытовой химии,легальный поставщик: собирает оплату с многих точек рынка; платит зарплаты и фабрике в Алматы
+c2_himbyt_loader_samat,peripheral,legit,false,грузчик,зарплата у оптовика
+c2_himbyt_cashier_aliya,peripheral,legit,false,кассир,зарплата у оптовика
+c2_rynok_admin,consolidator,legit,false,администрация рынка,собирает аренду мест со всех точек; платит охране и акимату
+c2_rynok_guard_kairat,peripheral,legit,false,охранник рынка,зарплата от администрации
+c2_bakyt_helper,peripheral,legit,false,продавец на точке,наёмный продавец на легальной точке Серика
+c2_bakyt_mother_sholpan,peripheral,legit,false,пенсионерка,получает от сына
+c2_cm_timur,consolidator,legit,false,одноклассник-организатор,собрал с одноклассников на встречу выпускников и оплатил кафе (легальный двойник сборщика)
+c2_timur_wife_ayim,peripheral,legit,false,жена Тимура,хозяйство
+c2_cm_dias,peripheral,legit,false,одноклассник,занял у Серика на аренду и вернул; взнос на встречу
+c2_cm_erzhan,peripheral,legit,false,одноклассник,Серик вернул ему старый долг; взнос на встречу
+c2_cm_gaukhar,peripheral,legit,false,одноклассница-кондитер,печёт торты на заказ; взнос на встречу
+c2_cm_rustem,peripheral,legit,false,одноклассник-мастер,ставит кондиционеры; взнос на встречу
+c2_cm_aidana,peripheral,legit,false,одноклассница-репетитор,частные уроки; взнос на встречу
+c2_cm_zarina,peripheral,legit,false,одноклассница,живёт в Алматы; платит через другой банк
+c2_daulet_mother_bibigul,peripheral,legit,false,мать курьера,получает от сына; продукты и аптека
+c2_daulet_gf_aruzhan,peripheral,legit,false,девушка курьера,получает подарки; салон и кафе
+c2_yerbol_nurzhan_brother,peripheral,legit,false,брат курьера,аренда и хозяйство
+c2_dinara_yerbol_wife,peripheral,legit,false,жена брата курьера,хозяйство
+c2_ernar_mother_ainur,peripheral,legit,false,мать курьера-торговка,держит точку на рынке: аренда места и закуп у оптовика
+c2_dana_mother_lyazzat,peripheral,legit,false,мать дропа-торговка,держит точку на рынке: аренда места и закуп у оптовика
+c2_bekzat_roommate_adil,peripheral,legit,false,сосед по квартире,делит аренду с Бекзатом
+c2_aibek_wife_kamila,peripheral,legit,false,жена курьера,хозяйство и курсы ребёнку
+c2_temirlan_friend_sanzhar,peripheral,legit,false,друг курьера,отдаёт долг частями
