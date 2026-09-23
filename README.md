@@ -35,9 +35,10 @@ server/src/
   index.ts        точка входа Bun (порт 3001, env PORT)
   app.ts          Hono-приложение: /api + JSON-обработчики 404/500
   routes/index.ts все маршруты API в одном месте, экспорт AppType для Hono RPC
-  routes/*.ts     health, stats, graph, transactions, nodes
+  routes/*.ts     health, stats, graph, transactions, nodes, top, clusters
   data/load.ts    загрузка parquet один раз при старте (env DATA_DIR)
-  data/types.ts   типы Node, Edge, Transaction
+  data/out.ts     чтение out/*.csv пайплайна один раз при старте (env OUT_DIR)
+  data/types.ts   типы parquet и out/*.csv
 
 client/src/
   router.tsx      таблица маршрутов (React Router, createBrowserRouter)
@@ -63,9 +64,12 @@ client/src/
 |---|---|
 | `GET /api/health` | `{ ok: true }` |
 | `GET /api/stats` | число узлов, рёбер, транзакций, seed, общий оборот |
-| `GET /api/graph` | `{ nodes, edges }` |
+| `GET /api/graph` | `{ nodes, edges }`; узлы дополнены `role, roleScore, clusterId, priorityScore, inKzt, outKzt, inDeg, outDeg` |
 | `GET /api/transactions` | все транзакции с датами |
-| `GET /api/nodes/:gid` | узел + входящие и исходящие рёбра; 404 для неизвестного gid |
+| `GET /api/nodes/:gid` | `{ node, metrics, role, in, out, daily }`: узел, метрики из `node_metrics.csv`, роль с evidence, рёбра, обороты по дням; 404 для неизвестного gid |
+| `GET /api/top` | строки `top_nodes.csv` |
+| `GET /api/clusters` | строки `clusters.csv` (`topGids` — массив) |
+| `GET /api/clusters/:id` | строка `clusters.csv` + `members`; 404 для неизвестного id |
 
 ## Установка и запуск
 
@@ -76,7 +80,7 @@ bun install
 bun run dev
 ```
 
-Клиент: http://localhost:5173, API: http://localhost:3001. Путь к данным по умолчанию — `task/data`, переопределяется переменной `DATA_DIR`.
+Клиент: http://localhost:5173, API: http://localhost:3001. Путь к данным по умолчанию — `task/data`, переопределяется переменной `DATA_DIR`. Сервер также читает CSV пайплайна из `out/` (переменная `OUT_DIR`) и не стартует без них; формат — [docs/PIPELINE_CONTRACT.md](docs/PIPELINE_CONTRACT.md).
 
 ## Как проверить
 

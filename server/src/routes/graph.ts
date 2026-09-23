@@ -1,4 +1,5 @@
 import { Hono } from "hono";
-import { edges, nodes } from "../data/load";
+import { edges } from "../data/load";
+import { graphNodes } from "../data/out";
 
-export default new Hono().get("/", (c) => c.json({ nodes, edges }));
+export default new Hono().get("/", (c) => c.json({ nodes: graphNodes, edges }));
