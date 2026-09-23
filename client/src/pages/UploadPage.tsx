@@ -38,7 +38,7 @@ export default function UploadPage() {
   const doneDataset = done ? list.data?.datasets.find((d) => d.id === done) : undefined
   const [doneLog] = useState(() => (done ? sessionStorage.getItem(LOG_KEY) : null) ?? '')
   useEffect(() => {
-    if (doneDataset) toast.success(`Выгрузка «${doneDataset.name}» рассчитана и активна`)
+    if (doneDataset) toast.success(`Выгрузка «${doneDataset.name}» рассчитана и активна`, { id: 'upload-done' })
   }, [doneDataset])
 
   const ready = FILES.every((f) => files[f.key])
