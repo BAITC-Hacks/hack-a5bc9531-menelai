@@ -124,10 +124,61 @@ export type Meta = {
   role_counts: Record<Role, number>
 }
 
+// ---------------------------------------------------------------- /api/analytics (server/src/data/analytics.ts)
+
+export type TimeAnalytics = {
+  daily: { date: string; n: number; kzt: number }[]
+  syncTotal: number
+  sync: { date: string; dst: Gid; role: Role | null; payers: number; kzt: number }[]
+  syncPayers: number
+  fastDays: number
+  fastTransit: { gid: Gid; inKzt: number; outKzt: number; passThrough: number | null; fastShare: number | null; seedUp: number; depth: number }[]
+}
+
+export type Cycle = { path: Gid[]; minKzt: number }
+export type RoutesAnalytics = {
+  windowDays: number
+  chainsTotal: number
+  chains: { a: Gid; b: Gid; c: Gid; hits: number; bRole: Role | null; abKzt: number; abN: number; bcKzt: number; bcN: number }[]
+  cyclesTotal: number
+  cycleMaxLen: number
+  byLen: Record<string, number>
+  mutual: Cycle[]
+  triangles: Cycle[]
+}
+
+export type AnomaliesAnalytics = {
+  hist: { from: number; n: number }[]
+  nearTotal: number
+  structuringTotal: number
+  structuring: { src: Gid; isSeed: boolean; role: Role | null; n: number; kzt: number; dsts: number; days: number }[]
+  profile: { gid: Gid; depth: number; inKzt: number; depthMedian: number; z: number; role: Role; inDeg: number; outDeg: number; passThrough: number | null }[]
+}
+
+export type ResiliencePoint = { N: number; components: number; largestNodes: number; largestShare: number; removedShare: number }
+
+export type CompletenessAnalytics = {
+  seedNoOut: number
+  truncated: number
+  orphans: number
+  pContinue: Record<'1' | '2' | '3+', { share: number; n: number }>
+  truncatedByIn: Record<'1' | '2' | '3+', number>
+  expectedContinue: number
+  transitToTruncated: number
+  consolidators: number
+  structuringSenders: number
+}
+
+// ---------------------------------------------------------------- /api/assistant
+
+export type AssistantStatus = { llm: boolean; model: string; tools: string[] }
+export type AssistantStep = { tool: string; args: unknown; ok: boolean; summary: string }
+export type AssistantAnswer = { answer: string; trace: AssistantStep[]; model: string }
+
 export const CSV_FILES = ['nodes_roles.csv', 'clusters.csv', 'top_nodes.csv'] as const
 
-async function get<T>(path: string): Promise<T> {
-  const res = await fetch(`/api${path}`)
+async function get<T>(path: string, init?: RequestInit): Promise<T> {
+  const res = await fetch(`/api${path}`, init)
   if (!res.ok) {
     const body = await res.json().catch(() => null)
     throw new Error(body?.error ?? `${res.status} ${res.statusText}`)
@@ -143,5 +194,16 @@ export const api = {
   top: () => get<TopRow[]>('/top'),
   clusters: () => get<Cluster[]>('/clusters'),
   meta: () => get<Meta>('/meta'),
+  time: () => get<TimeAnalytics>('/analytics/time'),
+  routes: () => get<RoutesAnalytics>('/analytics/routes'),
+  anomalies: () => get<AnomaliesAnalytics>('/analytics/anomalies'),
+  resilience: () => get<ResiliencePoint[]>('/analytics/resilience'),
+  completeness: () => get<CompletenessAnalytics>('/analytics/completeness'),
+  assistantStatus: () => get<AssistantStatus>('/assistant/status'),
+  /** Deterministic tool call (works without an LLM key). */
+  tool: <T = unknown>(name: string, args: Record<string, unknown>) =>
+    get<T>(`/assistant/tools/${name}`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(args) }),
+  ask: (question: string) =>
+    get<AssistantAnswer>('/assistant/ask', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ question }) }),
   exportUrl: (file: (typeof CSV_FILES)[number]) => `/api/export/${file}`,
 }

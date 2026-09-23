@@ -8,7 +8,9 @@ const NAV = [
   { to: '/graph', label: 'Схема сети' },
   { to: '/top', label: 'Приоритеты' },
   { to: '/clusters', label: 'Кластеры' },
-  { to: '/rules', label: 'Правила ролей' },
+  { to: '/analysis', label: 'Анализ' },
+  { to: '/assistant', label: 'Ассистент' },
+  { to: '/method', label: 'Метод' },
 ]
 
 function Logo() {

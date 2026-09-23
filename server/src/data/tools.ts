@@ -68,7 +68,15 @@ export const tools = {
       for (const e of out.get(v) ?? []) if (!path.includes(e.dst)) walk(e.dst, [...path, e.dst]);
     };
     walk(a, [a]);
-    return { src: a, dst: b, max_len: L, directed: true, paths: found.map((p) => ({ hops: p.length - 1, nodes: p.map(brief) })) };
+    const sum = (x: string, y: string) => out.get(x)?.find((e) => e.dst === y)
+    return {
+      src: a, dst: b, max_len: L, directed: true,
+      paths: found.map((p) => ({
+        hops: p.length - 1,
+        nodes: p.map(brief),
+        links: p.slice(1).map((g, i) => ({ from: p[i], to: g, sum_kzt: sum(p[i], g)?.sumKzt ?? 0, n_tx: sum(p[i], g)?.nTx ?? 0 })),
+      })),
+    };
   },
   sync_events({ dst, date }: { dst?: string; date?: string }) {
     const g = dst ? resolve(dst) : undefined;

@@ -55,7 +55,7 @@ export default function OverviewPage() {
         <Button variant="outline" nativeButton={false} render={<Link to="/top" />}>
           Кого смотреть первым
         </Button>
-        <Button variant="outline" nativeButton={false} render={<Link to="/rules" />}>
+        <Button variant="outline" nativeButton={false} render={<Link to="/method/rules" />}>
           Правила ролей
         </Button>
       </div>

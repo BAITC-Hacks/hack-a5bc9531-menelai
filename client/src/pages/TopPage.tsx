@@ -158,7 +158,7 @@ export default function TopPage() {
 
       <p className="text-xs text-muted-foreground">
         Ранжирование детерминированное, из <code className="font-mono">pipeline/run.py</code>; правила — на странице{' '}
-        <Link to="/rules" className="text-ink-2 underline decoration-line-2 decoration-dotted underline-offset-4 hover:text-gold">
+        <Link to="/method/rules" className="text-ink-2 underline decoration-line-2 decoration-dotted underline-offset-4 hover:text-gold">
           «Правила ролей»
         </Link>
         .
