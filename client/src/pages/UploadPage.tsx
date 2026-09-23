@@ -1,6 +1,7 @@
-import { useRef, useState, type DragEvent, type FormEvent } from 'react'
+import { useEffect, useRef, useState, type DragEvent, type FormEvent } from 'react'
 import { Link, useSearchParams } from 'react-router'
-import { FileUpIcon, Loader2Icon } from 'lucide-react'
+import { CheckIcon, FileUpIcon, Loader2Icon, XIcon } from 'lucide-react'
+import { toast } from 'sonner'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -17,15 +18,6 @@ const FILES = [
 ] as const
 type FileKey = (typeof FILES)[number]['key']
 
-/** Assign a dropped file by its name: «transactions» first, since it is the only unambiguous long one. */
-const keyOf = (name: string): FileKey | null => {
-  const n = name.toLowerCase()
-  if (n.includes('trans')) return 'transactions'
-  if (n.includes('edge')) return 'edges'
-  if (n.includes('node')) return 'nodes'
-  return null
-}
-
 const errText = (e: unknown) => (e instanceof Error ? e.message : String(e))
 const LOG_KEY = 'upload-log'
 
@@ -34,34 +26,15 @@ export default function UploadPage() {
   const [name, setName] = useState('')
   const [running, setRunning] = useState(false)
   const [failure, setFailure] = useState<{ message: string; log?: string } | null>(null)
-  const [unmatched, setUnmatched] = useState<string[]>([])
-  const [dragOver, setDragOver] = useState(false)
-  const picker = useRef<HTMLInputElement>(null)
   const list = useApi(api.datasets)
   // After a successful upload the page reloads at ?done=<id> so the header and footer pick up the new dataset.
   const [params] = useSearchParams()
   const done = params.get('done')
   const doneDataset = done ? list.data?.datasets.find((d) => d.id === done) : undefined
   const [doneLog] = useState(() => (done ? sessionStorage.getItem(LOG_KEY) : null) ?? '')
-
-  const addFiles = (incoming: FileList | null) => {
-    if (!incoming) return
-    const next = { ...files }
-    const miss: string[] = []
-    for (const f of incoming) {
-      const k = keyOf(f.name)
-      if (k) next[k] = f
-      else miss.push(f.name)
-    }
-    setFiles(next)
-    setUnmatched(miss)
-  }
-
-  const onDrop = (e: DragEvent) => {
-    e.preventDefault()
-    setDragOver(false)
-    addFiles(e.dataTransfer.files)
-  }
+  useEffect(() => {
+    if (doneDataset) toast.success(`Выгрузка «${doneDataset.name}» рассчитана и активна`)
+  }, [doneDataset])
 
   const ready = FILES.every((f) => files[f.key])
 
@@ -79,6 +52,7 @@ export default function UploadPage() {
       window.location.assign(`/upload?done=${encodeURIComponent(dataset.id)}`)
     } catch (err) {
       setFailure({ message: errText(err), log: err instanceof UploadError ? err.log : undefined })
+      toast.error('Выгрузку не удалось обработать', { description: errText(err), duration: 10000 })
       setRunning(false)
     }
   }
@@ -96,73 +70,10 @@ export default function UploadPage() {
         }
       />
 
-      <Panel eyebrow="ожидаемые колонки" title="Формат файлов">
-        <dl className="grid gap-2 text-[13px] sm:grid-cols-3">
-          {FILES.map((f) => (
-            <div key={f.key} className="grid gap-1 rounded-lg border bg-panel-2/40 px-3 py-2.5">
-              <dt className="font-mono font-medium">{f.key}</dt>
-              <dd className="font-mono text-[12px] text-ink-2">{f.cols}</dd>
-            </div>
-          ))}
-        </dl>
-      </Panel>
-
       <form onSubmit={onSubmit} className="grid gap-4">
-        <div
-          role="button"
-          tabIndex={0}
-          onClick={() => picker.current?.click()}
-          onKeyDown={(e) => {
-            if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); picker.current?.click() }
-          }}
-          onDragOver={(e) => {
-            e.preventDefault()
-            setDragOver(true)
-          }}
-          onDragLeave={() => setDragOver(false)}
-          onDrop={onDrop}
-          className={cn(
-            'grid cursor-pointer justify-items-center gap-2 rounded-xl border border-dashed bg-card px-4 py-8 text-center transition-colors',
-            dragOver ? 'border-gold bg-gold/5' : 'hover:border-gold/60',
-          )}
-        >
-          <FileUpIcon className="size-6 text-muted-foreground" aria-hidden />
-          <span className="text-sm font-medium">Перетащите сюда три файла или нажмите, чтобы выбрать</span>
-          <span className="text-xs text-muted-foreground">До 100 МБ суммарно. Файлы распределяются по имени: в нём должно быть nodes, edges или transactions.</span>
-          <input
-            ref={picker}
-            type="file"
-            multiple
-            accept=".parquet"
-            className="hidden"
-            onChange={(e) => {
-              addFiles(e.target.files)
-              e.target.value = ''
-            }}
-          />
-        </div>
-        {unmatched.length > 0 && (
-          <p className="text-xs text-destructive">
-            Не удалось определить по имени: {unmatched.join(', ')}. Выберите их вручную ниже.
-          </p>
-        )}
-
-        <div className="grid gap-3 sm:grid-cols-3">
+        <div className="grid gap-2">
           {FILES.map((f) => (
-            <label key={f.key} className="grid gap-1.5 text-[13px]">
-              <span className="flex items-center justify-between gap-2">
-                <span className="font-mono font-medium">{f.key}</span>
-                {files[f.key] && <span className="truncate font-mono text-[11px] text-muted-foreground">{files[f.key]!.name}</span>}
-              </span>
-              <Input
-                type="file"
-                accept=".parquet"
-                onChange={(e) => {
-                  const file = e.target.files?.[0]
-                  if (file) setFiles((prev) => ({ ...prev, [f.key]: file }))
-                }}
-              />
-            </label>
+            <FileRow key={f.key} label={f.key} cols={f.cols} file={files[f.key]} onFile={(file) => setFiles((prev) => ({ ...prev, [f.key]: file }))} />
           ))}
         </div>
 
@@ -203,6 +114,67 @@ export default function UploadPage() {
         )}
       </Panel>
     </>
+  )
+}
+
+function FileRow({ label, cols, file, onFile }: { label: string; cols: string; file?: File; onFile: (file: File | undefined) => void }) {
+  const [dragOver, setDragOver] = useState(false)
+  const picker = useRef<HTMLInputElement>(null)
+  const onDrop = (e: DragEvent) => {
+    e.preventDefault()
+    setDragOver(false)
+    const dropped = e.dataTransfer.files[0]
+    if (!dropped) return
+    if (!dropped.name.toLowerCase().endsWith('.parquet')) {
+      toast.error('Нужен файл .parquet', { description: dropped.name })
+      return
+    }
+    onFile(dropped)
+  }
+  return (
+    <div
+      role="button"
+      tabIndex={0}
+      onClick={() => picker.current?.click()}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); picker.current?.click() }
+      }}
+      onDragOver={(e) => { e.preventDefault(); setDragOver(true) }}
+      onDragLeave={() => setDragOver(false)}
+      onDrop={onDrop}
+      className={cn(
+        'flex cursor-pointer flex-wrap items-center gap-x-4 gap-y-1 rounded-xl border border-dashed bg-card px-4 py-3 transition-colors',
+        dragOver ? 'border-gold bg-gold/5' : file ? 'border-solid border-gold/50' : 'hover:border-gold/60',
+      )}
+    >
+      {file ? <CheckIcon className="size-4 shrink-0 text-gold" aria-hidden /> : <FileUpIcon className="size-4 shrink-0 text-muted-foreground" aria-hidden />}
+      <span className="w-28 font-mono text-[13px] font-medium">{label}</span>
+      <span className="font-mono text-[12px] text-ink-2">{cols}</span>
+      <span className="ml-auto flex min-w-0 items-center gap-2 text-[13px]">
+        {file ? (
+          <>
+            <span className="truncate font-mono text-[12px]">{file.name}</span>
+            <button
+              type="button"
+              aria-label={`Убрать ${label}`}
+              className="rounded p-0.5 text-muted-foreground hover:text-foreground"
+              onClick={(e) => { e.stopPropagation(); onFile(undefined) }}
+            >
+              <XIcon className="size-3.5" aria-hidden />
+            </button>
+          </>
+        ) : (
+          <span className="text-muted-foreground">Перетащите .parquet или нажмите</span>
+        )}
+      </span>
+      <input
+        ref={picker}
+        type="file"
+        accept=".parquet"
+        className="hidden"
+        onChange={(e) => { onFile(e.target.files?.[0]); e.target.value = '' }}
+      />
+    </div>
   )
 }
 
