@@ -61,14 +61,15 @@ export function buildTools({ nodes, edges, transactions, results }: GraphData) {
     },
     paths({ src, dst, max_len = 4 }: { src: string; dst: string; max_len?: number }) {
       const a = resolve(src), b = resolve(dst), L = Math.min(5, Math.max(1, max_len));
+      // iterative deepening: all paths of 1 hop, then 2, … — the shortest routes come first and are never cut by the limit
       const found: string[][] = [];
-      const walk = (v: string, path: string[]) => {
+      const walk = (v: string, path: string[], hops: number) => {
         if (found.length >= 20) return;
-        if (v === b) { found.push(path); return; }
-        if (path.length > L) return;
-        for (const e of out.get(v) ?? []) if (!path.includes(e.dst)) walk(e.dst, [...path, e.dst]);
+        if (path.length - 1 === hops) { if (v === b) found.push(path); return; }
+        if (v === b) return;
+        for (const e of out.get(v) ?? []) if (!path.includes(e.dst)) walk(e.dst, [...path, e.dst], hops);
       };
-      walk(a, [a]);
+      for (let hops = 1; hops <= L && found.length < 20; hops++) walk(a, [a], hops);
       const sum = (x: string, y: string) => out.get(x)?.find((e) => e.dst === y)
       return {
         src: a, dst: b, max_len: L, directed: true,
@@ -98,7 +99,7 @@ export function buildTools({ nodes, edges, transactions, results }: GraphData) {
     },
     query_nodes({ role, cluster, is_seed, min_priority = 0, limit = 15 }: { role?: string; cluster?: number; is_seed?: boolean; min_priority?: number; limit?: number }) {
       const rows = Object.entries(results?.metrics ?? {})
-        .filter(([, x]) => (!role || x.role === role) && (cluster == null || x.cluster_id === cluster) && (is_seed == null || x.is_seed === is_seed) && x.priority_score >= min_priority)
+        .filter(([, x]) => (!role || x.role === role) && (cluster == null || x.cluster_id === Number(cluster)) && (is_seed == null || x.is_seed === is_seed) && x.priority_score >= min_priority)
         .sort((a, b) => b[1].priority_score - a[1].priority_score);
       return { total: rows.length, nodes: rows.slice(0, Math.min(50, limit)).map(([g, x]) => ({ ...brief(g), in_kzt: x.in_kzt, out_kzt: x.out_kzt, evidence: x.evidence })) };
     },
@@ -118,13 +119,13 @@ export const toolSchemas = [
   { name: "node_metrics", description: "Метрики, роль, приоритет, кластер и evidence узла. gid — полный или уникальный хвост.", parameters: { type: "object", properties: { gid: { type: "string" } }, required: ["gid"] } },
   { name: "neighbors", description: "Крупнейшие плательщики и/или получатели узла с суммами.", parameters: { type: "object", properties: { gid: { type: "string" }, direction: { type: "string", enum: ["in", "out", "both"] }, limit: { type: "integer" } }, required: ["gid"] } },
   { name: "common_successors", description: "Получатели, которым платят ≥ 2 из переданных узлов.", parameters: { type: "object", properties: { gids: { type: "array", items: { type: "string" } } }, required: ["gids"] } },
-  { name: "paths", description: "Направленные простые пути денег от src к dst длиной ≤ max_len (≤ 5), до 20 путей.", parameters: { type: "object", properties: { src: { type: "string" }, dst: { type: "string" }, max_len: { type: "integer" } }, required: ["src", "dst"] } },
+  { name: "paths", description: "Направленные простые пути денег от src к dst длиной ≤ max_len (≤ 5), до 20 путей, кратчайшие первыми.", parameters: { type: "object", properties: { src: { type: "string" }, dst: { type: "string" }, max_len: { type: "integer" } }, required: ["src", "dst"] } },
   { name: "sync_events", description: "Синхронные входы: ≥ 3 разных плательщика одному получателю за день. Фильтр по получателю и/или дате YYYY-MM-DD.", parameters: { type: "object", properties: { dst: { type: "string" }, date: { type: "string" } } } },
   { name: "query_nodes", description: "Узлы по фильтру (роль, кластер, seed, мин. приоритет), по убыванию приоритета.", parameters: { type: "object", properties: { role: { type: "string", enum: ["coordinator", "consolidator", "distributor", "transit", "terminal", "peripheral"] }, cluster: { type: "integer" }, is_seed: { type: "boolean" }, min_priority: { type: "number" }, limit: { type: "integer" } } } },
   { name: "cluster_summary", description: "Сводка кластера: размер, seed, внутренний оборот, топ-gid, гипотеза.", parameters: { type: "object", properties: { cluster_id: { type: "integer" } }, required: ["cluster_id"] } },
 ].map((t) => ({ type: "function" as const, ...t }));
 
 export function runTool(tools: Tools, name: string, args: unknown) {
-  if (!(name in tools)) throw new Error(`неизвестный инструмент ${name}`);
+  if (!Object.hasOwn(tools, name)) throw new Error(`неизвестный инструмент ${name}`);
   return (tools[name as ToolName] as (a: unknown) => unknown)(args ?? {});
 }

@@ -10,6 +10,7 @@ export type Metrics = {
   betweenness: number; pagerank: number; in_cycle: boolean; fast_out_share: number | null;
   sync_in_events: number; truncated: boolean; depth: number; is_seed: boolean;
   role: string; role_score: number; priority_score: number; cluster_id: number; evidence: string;
+  max_payer_share: number | null; no_data: boolean; nearest_role: string; near_share: number; weak_seed_link: boolean;
   cycles: string[][]; sync_days: string[]; top_in: Link[]; top_out: Link[];
 };
 export type Meta = {

@@ -121,7 +121,7 @@ def test_pattern_details():
 
 def test_priority_weights():
     f, _ = result()
-    plain = f.assign(no_data=False, weak_seed_link=False)      # тот же base, только вес роли
+    plain = f.assign(no_data=False, weak_seed_link=False, seed_share=1.0)   # тот же base, только вес роли
     run.priority(f)
     run.priority(plain)
     k = f.priority_score / plain.priority_score
@@ -144,6 +144,23 @@ def test_priority_weights():
     assert f.loc[L, "near_share"] > 0.5
     want = (0.2 + run.PERIPHERAL_NEAR_BONUS * f.loc[L, "near_share"]) / 0.2
     assert abs(f.priority_score[L] / far.priority_score[L] - want) < 1e-2
+    # peripheral без денег seed: тот же вес × WEAK_SEED_PRIORITY_MULT — не выше terminal со слабой связью
+    rich = f.assign(seed_share=1.0)
+    run.priority(rich)
+    poor = f.assign(seed_share=0.0)
+    run.priority(poor)
+    assert abs(poor.priority_score[L] / rich.priority_score[L] - run.WEAK_SEED_PRIORITY_MULT) < 1e-2
+
+
+def test_evidence_fits_200_on_large_numbers():
+    """Чужая выгрузка крупнее: большие пороги, степени и суммы не должны ронять checks() (evidence ≤ 200)."""
+    f, Tr = result()
+    T = {**Tr, "coord_in_deg": 12, "coord_out_deg": 30, "coord_min_kzt": 1_234_000, "coord_betw_thr": 0.012345}
+    r = f.loc[K].copy()
+    r.update({"in_deg": 120, "out_deg": 150, "n_seed_upstream": 12, "in_kzt": 123_456_789.0, "out_kzt": 98_765_432.0,
+              "betweenness": 0.098765, "seed_share": 0.0996, "weak_seed_link": True, "is_seed": False})
+    e = run.evidence(r, T)
+    assert len(e) <= 200 and e.startswith("coordinator:"), (len(e), e)
 
 
 def test_coordinator_turnover_floor():

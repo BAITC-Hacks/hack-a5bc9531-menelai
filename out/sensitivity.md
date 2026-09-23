@@ -55,8 +55,8 @@ in_kzt ≥ 215 000 ₸, транзит ≥ 100 000 ₸).
 **Неустойчиво по критерию.**
 - Топ-20 (кого смотреть первым): неустойчив — худший Jaccard в одиночных вариантах
   0,60 (`cons_in_deg ×1,20`, 3 → 4).
-  `cons_in_deg ×1,20` (3 → 4): Jaccard 0,60, выпали из топ-20: consolidator→terminal, consolidator→terminal, consolidator→terminal, consolidator→terminal, consolidator→terminal. 
-- Состав ролей: порог 2 % превышен в 1 вариантах — `term_in_kzt ×0,80` (215 000 → 172 000): 49, Jaccard топ-20 1,00.
+  `cons_in_deg ×1,20` (3 → 4): Jaccard 0,60, выпали из топ-20: 100000000706545100 (consolidator→terminal), 100000001609499100 (consolidator→terminal), 100000003071930100 (consolidator→terminal), 100000004394765100 (consolidator→terminal), 100000004679953100 (consolidator→terminal). 
+- Состав ролей: порог 2 % превышен (вариантов: 1) — `term_in_kzt ×0,80` (215 000 → 172 000): 49, Jaccard топ-20 1,00.
   Целочисленный порог сдвигается минимум на 1: 3 → 2 и 3 → 4 плательщиков — шаг ±33 %, не ±20 %.
 - Все пороги сразу: мягче — Jaccard 0,74, сменили роль 129;
   строже — Jaccard 0,48, сменили роль 101.

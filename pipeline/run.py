@@ -407,11 +407,14 @@ def role_weight(f):
 
 def priority(f):
     """base = mean(pct seed_money_in, pct n_seed_upstream, pct in_kzt (у seed — out_kzt), pct betweenness)
-    × role_weight × WEAK_SEED_PRIORITY_MULT при weak_seed_link × SEED_PRIORITY_MULT у seed."""
+    × role_weight × WEAK_SEED_PRIORITY_MULT при слабой связи с делом × SEED_PRIORITY_MULT у seed.
+    Слабая связь: weak_seed_link у ролей и seed-денег < weak_seed_share у peripheral с данными — иначе надбавка
+    за близость к роли поднимала бы мелкие «почти стоки» без денег seed выше terminal со слабой связью."""
     pct = lambda s: s.rank(pct=True, method="average")
     p_in = pct(f.in_kzt).where(~f.is_seed, pct(f.out_kzt))    # у seed вход занижен выгрузкой
     base = (pct(f.seed_money_in) + pct(f.n_seed_upstream) + p_in + pct(f.betweenness)) / 4
-    w = role_weight(f) * np.where(f.weak_seed_link, WEAK_SEED_PRIORITY_MULT, 1.0)
+    weak = f.weak_seed_link | ((f.role == "peripheral") & ~f.no_data & (f.seed_share < T["weak_seed_share"]))
+    w = role_weight(f) * np.where(weak, WEAK_SEED_PRIORITY_MULT, 1.0)
     w = w * np.where(f.is_seed, SEED_PRIORITY_MULT, 1.0)
     f["priority_score"] = np.round(base * w, 4)
 
@@ -437,6 +440,8 @@ def evidence(r, T) -> str:
         tail = ", возможен легальный контрагент"          # пояснение — только если влезает в 200 символов
         if len(e) + len(tail) <= 200:
             e += tail
+    if len(e) > 200:                  # страховка для чужих выгрузок с длинными числами: checks() требует ≤ 200
+        e = e[:199] + "…"
     return e
 
 
@@ -501,7 +506,7 @@ def why(r, sync_days, T) -> str:
     if extra:
         parts.append("Также: " + "; ".join(extra) + ".")
     if r.weak_seed_link:
-        parts.append(f"Связь с делом слабая (seed-денег {pct_str(r.seed_share, T['weak_seed_share'])} < 10%): приоритет ×{dec(WEAK_SEED_PRIORITY_MULT, 1)}.")
+        parts.append(f"Связь с делом слабая (seed-денег {pct_str(r.seed_share, T['weak_seed_share'])} < {pct_str(T['weak_seed_share'])}): приоритет ×{dec(WEAK_SEED_PRIORITY_MULT, 1)}.")
     parts.append(f"Посредничество {dec(r.betweenness, 4)}, кластер {r.cluster_id}, приоритет {dec(r.priority_score, 3)}.")
     return " ".join(parts)
 
@@ -536,7 +541,7 @@ def write_csv(df, path):
     d = df.copy()
     for c in d.select_dtypes(bool).columns:
         d[c] = d[c].map({True: "true", False: "false"})
-    d.to_csv(path, index=False)
+    d.to_csv(path, index=False, lineterminator="\n")        # LF на любой ОС: файлы побайтно совпадают
 
 
 NODE_METRICS_COLS = ["gid", "depth", "is_seed", "in_deg", "out_deg", "in_kzt", "out_kzt", "in_tx", "out_tx",
@@ -567,7 +572,7 @@ def contract_tables(f, G, edges, tx):
     bursts = both.groupby(["gid", "other", "dir", "date"]).size()
     m["same_day_bursts"] = (bursts >= 2).groupby(level="gid").sum().reindex(m.gid, fill_value=0).values
     m["truncated_by_depth"] = m.truncated
-    m["real_sink"] = (m.depth < 4) & ~m.is_seed & (m.out_deg == 0)
+    m["real_sink"] = (m.depth < m.depth.max()) & ~m.is_seed & (m.out_deg == 0)
     m["no_edges"] = m.isolated
     comps = sorted(nx.weakly_connected_components(G), key=lambda c: (-len(c), min(c)))
     comp = {v: i for i, c in enumerate(comps) for v in c}
@@ -621,7 +626,7 @@ def outputs(f, G, edges, tx, ctab, per_cycles, sync_days, out_dir: Path, meta, T
     top.insert(0, "rank", range(1, len(top) + 1))
     tt = top.set_index("gid")
     top["why"] = [why(tt.loc[g], sync_days, Tr) for g in top.gid]
-    top[["rank", "gid", "role", "priority_score", "why"]].to_csv(out_dir / "top_nodes.csv", index=False)
+    top[["rank", "gid", "role", "priority_score", "why"]].to_csv(out_dir / "top_nodes.csv", index=False, lineterminator="\n")
 
     nm = {}
     for r in f.itertuples(index=False):
@@ -634,7 +639,7 @@ def outputs(f, G, edges, tx, ctab, per_cycles, sync_days, out_dir: Path, meta, T
                  top_in=top_links(edges, g, "in"), top_out=top_links(edges, g, "out"))
         nm[str(g)] = d
     nm["_meta"] = meta
-    (out_dir / "node_metrics.json").write_text(json.dumps(nm, ensure_ascii=False, indent=1), encoding="utf-8")
+    (out_dir / "node_metrics.json").write_text(json.dumps(nm, ensure_ascii=False, indent=1), encoding="utf-8", newline="\n")
     return nr, top, nmc, emc
 
 

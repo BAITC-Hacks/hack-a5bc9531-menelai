@@ -97,7 +97,7 @@ def main():
         rows.append(dict(вариант=name, порог=change, **{r: int(cnt[r]) for r in run.ROLES},
                          jaccard_top20=len(top & base_top) / len(top | base_top),
                          сменили_роль=int((role != base_role).sum()), kind=kind,
-                         drop=", ".join(f"{base_role[g]}→{role[g]}" for g in sorted(dropped))))
+                         drop=", ".join(f"{g} ({base_role[g]}→{role[g]})" for g in sorted(dropped))))
     df = pd.DataFrame(rows)
 
     single = df[df.kind == "single"].iloc[1:]
@@ -134,13 +134,13 @@ in_kzt ≥ {fmt(T0['cons_in_kzt'])} ₸, транзит ≥ {fmt(T0['tr_in_kzt']
 - Топ-20 (кого смотреть первым): {"устойчив" if top_ok else "неустойчив"} — худший Jaccard в одиночных вариантах
   {dec(worst_j.jaccard_top20)} (`{worst_j.вариант}`, {worst_j.порог}).
   {"".join(f"`{r.вариант}` ({r.порог}): Jaccard {dec(r.jaccard_top20)}, выпали из топ-20: {r.drop}. " for r in bad_top.itertuples())}
-- Состав ролей: {"устойчив" if bad_roles.empty else "порог 2 % превышен в " + str(len(bad_roles)) + " вариантах — "
+- Состав ролей: {"устойчив" if bad_roles.empty else "порог 2 % превышен (вариантов: " + str(len(bad_roles)) + ") — "
   + ", ".join(f"`{r.вариант}` ({r.порог}): {r.сменили_роль}, Jaccard топ-20 {dec(r.jaccard_top20)}" for r in bad_roles.itertuples())}.
   Целочисленный порог сдвигается минимум на 1: 3 → 2 и 3 → 4 плательщиков — шаг ±33 %, не ±20 %.
 - Все пороги сразу: мягче — Jaccard {dec(allv.iloc[0].jaccard_top20)}, сменили роль {allv.iloc[0].сменили_роль};
   строже — Jaccard {dec(allv.iloc[1].jaccard_top20)}, сменили роль {allv.iloc[1].сменили_роль}.
 """
-    Path(a.out, "sensitivity.md").write_text(md, encoding="utf-8")
+    Path(a.out, "sensitivity.md").write_text(md, encoding="utf-8", newline="\n")
     print(md)
     print(f"время {time.perf_counter() - t0:.1f} с")
 

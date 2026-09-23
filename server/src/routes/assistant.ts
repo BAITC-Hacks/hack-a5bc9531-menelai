@@ -11,6 +11,7 @@ const system = (period: [string, string] | null) => `Ты — ассистент
 Пиши gid полностью (18 цифр), суммы — в тенге с пробелами между разрядами.`;
 
 type Step = { tool: string; args: unknown; ok: boolean; summary: string };
+const GID = /\d{18}/g;
 
 export default new Hono()
   .get("/status", (c) => c.json({ llm: Boolean(process.env.OPENAI_API_KEY), model: MODEL, tools: toolSchemas.map((t) => t.name) }))
@@ -30,18 +31,30 @@ export default new Hono()
     const { tools, period } = current(); // pinned for the whole conversation even if the dataset is switched mid-way
     const input: unknown[] = [{ role: "developer", content: system(period) }, { role: "user", content: question.slice(0, 2000) }];
     const trace: Step[] = [];
+    const seen = new Set<string>(); // gids some tool output actually contains (a gid typed in the question isn't proof it exists)
     for (let round = 0; round < 8; round++) {
-      const res = await fetch("https://api.openai.com/v1/responses", {
-        method: "POST",
-        headers: { "Content-Type": "application/json", Authorization: `Bearer ${key}` },
-        body: JSON.stringify({ model: MODEL, input, tools: toolSchemas, reasoning: { effort: "low" } }),
-      });
-      if (!res.ok) return c.json({ error: `LLM API ${res.status}`, trace }, 502);
+      let res: Response;
+      try {
+        res = await fetch("https://api.openai.com/v1/responses", {
+          method: "POST",
+          headers: { "Content-Type": "application/json", Authorization: `Bearer ${key}` },
+          body: JSON.stringify({ model: MODEL, input, tools: toolSchemas, reasoning: { effort: "low" } }),
+          signal: AbortSignal.timeout(60_000),
+        });
+      } catch (e) {
+        return c.json({ error: `LLM API недоступен: ${(e as Error).message}`, trace }, 504);
+      }
+      if (!res.ok) {
+        const detail = ((await res.json().catch(() => null)) as { error?: { message?: string } } | null)?.error?.message;
+        return c.json({ error: `LLM API ${res.status}${detail ? `: ${detail}` : ""}`, trace }, 502);
+      }
       const r = (await res.json()) as { output: { type: string; call_id?: string; name?: string; arguments?: string; content?: { type: string; text?: string }[] }[] };
       const calls = r.output.filter((o) => o.type === "function_call");
       if (!calls.length) {
         const answer = r.output.flatMap((o) => (o.type === "message" ? (o.content ?? []) : [])).map((p) => p.text ?? "").join("\n").trim();
-        return c.json({ answer, trace, model: MODEL });
+        // gids in the answer that no tool returned: the model made them up or garbled them
+        const unverified = [...new Set(answer.match(GID) ?? [])].filter((g) => !seen.has(g));
+        return c.json({ answer, trace, model: MODEL, unverified });
       }
       input.push(...r.output);
       for (const call of calls) {
@@ -53,6 +66,7 @@ export default new Hono()
           ok = false;
           output = JSON.stringify({ error: (e as Error).message });
         }
+        for (const g of output.match(GID) ?? []) seen.add(g);
         trace.push({ tool: call.name!, args, ok, summary: output.slice(0, 240) });
         input.push({ type: "function_call_output", call_id: call.call_id, output });
       }

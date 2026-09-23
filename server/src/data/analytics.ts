@@ -11,8 +11,8 @@ export type Analytics = NonNullable<ReturnType<typeof buildAnalytics>>;
 export function buildAnalytics({ nodes, edges, transactions, results }: GraphData, maxDepth: number) {
   if (!results) return null;
   const T = results.meta.thresholds;
-  const SYNC_PAYERS = T.sync_payers ?? 3;
-  const FAST_DAYS = T.fast_days ?? 2;
+  const SYNC_PAYERS = T.sync_payers;
+  const FAST_DAYS = T.fast_days;
   const byGid = results.metrics;
   const metrics = (gid: string): Metrics | undefined => byGid[gid];
   const role = (gid: string) => metrics(gid)?.role ?? null;
@@ -53,37 +53,41 @@ export function buildAnalytics({ nodes, edges, transactions, results }: GraphDat
   // ---------------------------------------------------------------- routes & cycles
 
   function routes() {
-    // Chain A→B→C: a transfer A→B followed by B→C within 0..FAST_DAYS days. A "hit" is one A→B transfer
-    // that has at least one such follow-up. Kept when hits ≥ 2 and both links have ≥ 2 transfers.
-    const inTx = new Map<string, { src: string; d: number }[]>();
-    const outTx = new Map<string, { dst: string; d: number }[]>();
-    for (const t of transactions) {
-      (inTx.get(t.dst) ?? inTx.set(t.dst, []).get(t.dst)!).push({ src: t.src, d: dayNum(t.date) });
-      (outTx.get(t.src) ?? outTx.set(t.src, []).get(t.src)!).push({ dst: t.dst, d: dayNum(t.date) });
-    }
+    // Chain A→B→C: a transfer A→B followed by B→C within 0..FAST_DAYS days. Repeats are counted by distinct
+    // transfers on both links: hits = min(A→B transfers with a follow-up, B→C transfers that follow one),
+    // so one B→C transfer can't make a chain look "repeated". Kept when hits ≥ 2.
+    const inTx = new Map<string, { src: string; d: number; k: number }[]>();
+    const outTx = new Map<string, { dst: string; d: number; k: number }[]>();
+    transactions.forEach((t, k) => {
+      (inTx.get(t.dst) ?? inTx.set(t.dst, []).get(t.dst)!).push({ src: t.src, d: dayNum(t.date), k });
+      (outTx.get(t.src) ?? outTx.set(t.src, []).get(t.src)!).push({ dst: t.dst, d: dayNum(t.date), k });
+    });
     const edge = new Map(edges.map((e) => [`${e.src}|${e.dst}`, e]));
-    const hits = new Map<string, number>();
+    const pairs = new Map<string, { ab: Set<number>; bc: Set<number> }>();
     for (const [b, ins] of inTx) {
       const outs = outTx.get(b);
       if (!outs) continue;
-      for (const i of ins) {
-        const seen = new Set<string>();
-        for (const o of outs) if (o.dst !== i.src && o.d >= i.d && o.d - i.d <= FAST_DAYS) seen.add(o.dst);
-        for (const c of seen) hits.set(`${i.src}|${b}|${c}`, (hits.get(`${i.src}|${b}|${c}`) ?? 0) + 1);
-      }
+      for (const i of ins)
+        for (const o of outs)
+          if (o.dst !== i.src && o.d >= i.d && o.d - i.d <= FAST_DAYS) {
+            const key = `${i.src}|${b}|${o.dst}`;
+            const p = pairs.get(key) ?? pairs.set(key, { ab: new Set(), bc: new Set() }).get(key)!;
+            p.ab.add(i.k); p.bc.add(o.k);
+          }
     }
-    const chains = [...hits]
-      .map(([k, h]) => {
+    const chains = [...pairs]
+      .map(([k, p]) => {
+        const h = Math.min(p.ab.size, p.bc.size);
         const [a, b, c] = k.split("|");
         const ab = edge.get(`${a}|${b}`)!, bc = edge.get(`${b}|${c}`)!;
         return { a, b, c, hits: h, bRole: role(b), abKzt: ab.sumKzt, abN: ab.nTx, bcKzt: bc.sumKzt, bcN: bc.nTx };
       })
-      .filter((x) => x.hits >= 2 && x.abN >= 2 && x.bcN >= 2)
+      .filter((x) => x.hits >= 2)
       .sort((x, y) => y.hits - x.hits || y.bcKzt - x.bcKzt);
 
     // Simple directed cycles of length ≤ cycle_len, each found once from its smallest-index node.
     // (node_metrics.json keeps only a sample of cycles per node, so the list is enumerated here; total = _meta.n_cycles_le5.)
-    const maxLen = T.cycle_len ?? 5;
+    const maxLen = T.cycle_len;
     const id = new Map(nodes.map((n, i) => [n.gid, i]));
     const adj: number[][] = nodes.map(() => []);
     for (const e of edges) adj[id.get(e.src)!].push(id.get(e.dst)!);
@@ -124,7 +128,7 @@ export function buildAnalytics({ nodes, edges, transactions, results }: GraphDat
       const sd = Math.sqrt(xs.reduce((s, x) => s + (x.v - mean) ** 2, 0) / xs.length);
       const sorted = xs.map((x) => x.m.in_kzt).sort((a, b) => a - b);
       const median = sorted[Math.floor(sorted.length / 2)];
-      return xs.map((x) => ({ gid: x.gid, depth, inKzt: x.m.in_kzt, depthMedian: median, z: (x.v - mean) / sd, role: x.m.role, inDeg: x.m.in_deg, outDeg: x.m.out_deg, passThrough: x.m.pass_through }));
+      return xs.map((x) => ({ gid: x.gid, depth, inKzt: x.m.in_kzt, depthMedian: median, z: (x.v - mean) / sd, role: x.m.role, noData: x.m.no_data, inDeg: x.m.in_deg, outDeg: x.m.out_deg, passThrough: x.m.pass_through }));
     })
       .sort((a, b) => b.z - a.z)
       .slice(0, 15);
@@ -181,6 +185,7 @@ export function buildAnalytics({ nodes, edges, transactions, results }: GraphDat
       expectedContinue,
       transitToTruncated,
       consolidators: M.filter(([, m]) => m.role === "consolidator").length,
+      maxDepth,
     };
   }
 
