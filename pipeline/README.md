@@ -147,7 +147,7 @@ role_weight: coordinator 1,0 · consolidator 0,9 · distributor 0,7 · transit 0
 
 Утверждения модели перепроверялись кодом. Два её замечания проверка не подтвердила.
 
-Симуляция шла **на снимке v1** (`eval/snapshot_v1/`) и на v3 не перезапускалась. Следующие её замечания исправлены в v3, и это видно в текущих `out/`:
+Первая симуляция шла **на снимке v1** (`eval/snapshot_v1/`). Следующие её замечания исправлены в v3, и это видно в текущих `out/`:
 
 | Замечание жюри (v1) | В v3 |
 |---|---|
@@ -157,6 +157,8 @@ role_weight: coordinator 1,0 · consolidator 0,9 · distributor 0,7 · transit 0
 | обрезанные узлы подавлены весом 0,2; у изолированных seed `seed_share = 1` и нет чисел в evidence (19 строк) | флаг `no_data`, вес 0,5, `seed_share = 0`, evidence «0 вход., 0 исход.» |
 | 37 consolidator с `seed_share < 0,1` при весе 0,9 | `weak_seed_link` × 0,7 |
 | «0,30» при правиле < 0,3; 87 % вместо 88 % | «0,299», округление half-up: «88%» |
+
+**Перепроверка на итоговой v3.** Симуляция и проверка evidence перезапущены на снимке v3 (`eval/snapshot_v3/`, `EVAL_SNAP=v3`). Разобраны 65 gid (топ-30, по 5 случайных на роль и 9 спецслучаев: `no_data`, `weak_seed_link`, terminal с `max_payer_share ≥ 0,8`). Итог — **65 «да» / 0 «частично» / 0 «нет»**. Evidence всех 2 248 строк: кодом проблем нет, модель дала одно косметическое замечание по округлению (`pass_through` 0,995 в evidence печатается как «0,99»). Отчёт — [`eval/jury_report_v3.md`](eval/jury_report_v3.md), как запускать — [`eval/README.md`](eval/README.md).
 
 **LLM использовался только для оценки решения.** В `run.py` и `sensitivity.py` вызовов LLM нет, и для запуска пайплайна они не нужны. Для повторного запуска `eval/` нужен `OPENAI_API_KEY` в локальном `.env` (файл в `.gitignore`, в репозиторий не попадает) и отдельные зависимости: `uv run --with openai --with python-dotenv --with pandas --with tabulate python eval/jury.py …`. Стоимость прогона по оценке в отчёте — около $15.
 

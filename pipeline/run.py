@@ -103,6 +103,7 @@ def dec_thr(x, thr, nd=2) -> str:
 # ------------------------------------------------------------------ load
 
 def load(data_dir: Path):
+    """Читает три parquet и сверяет edges с суммой transactions (как starter.sanity_check)."""
     edges = pd.read_parquet(data_dir / "edges.parquet")
     nodes = pd.read_parquet(data_dir / "nodes.parquet")
     tx = pd.read_parquet(data_dir / "transactions.parquet")
@@ -117,6 +118,7 @@ def load(data_dir: Path):
 
 
 def build_graph(edges, nodes) -> nx.DiGraph:
+    """Ориентированный граф: все узлы из nodes (включая изолированные seed), вес ребра = sum_kzt."""
     G = nx.DiGraph()
     G.add_nodes_from(nodes.gid.tolist())          # 19 seed без рёбер тоже в графе
     for r in edges.itertuples(index=False):
@@ -127,6 +129,8 @@ def build_graph(edges, nodes) -> nx.DiGraph:
 # ------------------------------------------------------------------ features
 
 def features(G, edges, nodes) -> pd.DataFrame:
+    """Метрики узла: степени, суммы, pass_through, флаги обрезки/«нет данных», pagerank, betweenness,
+    число seed выше по потоку (≤4 шага)."""
     f = nodes.set_index("gid")[["depth", "is_seed"]].copy()
     f["is_seed"] = f.is_seed.astype(bool)
     f["in_deg"] = edges.groupby("dst").src.nunique().reindex(f.index, fill_value=0).astype(int)
@@ -212,6 +216,7 @@ def temporal(f, tx):
 # ------------------------------------------------------------------ cycles (логика «Пункт 10»)
 
 def cycles(G, f):
+    """Простые циклы длиной ≤5; на узел — до 3 кратчайших в канонической форме. Возвращает (per, число циклов)."""
     cyc = list(nx.simple_cycles(G, length_bound=T["cycle_len"]))
     per = defaultdict(list)
     for c in cyc:
@@ -229,10 +234,12 @@ def cycles(G, f):
 # ------------------------------------------------------------------ roles
 
 def margin_ge(v, thr):
+    """Запас над порогом «≥» в долях порога, обрезан в [0, 1]."""
     return float(np.clip((v - thr) / thr, 0, 1))
 
 
 def margin_le(v, thr):
+    """Запас под порогом «<» в долях порога, обрезан в [0, 1]."""
     return float(np.clip((thr - v) / thr, 0, 1))
 
 
@@ -308,7 +315,23 @@ def clusters(G, f):
     return comms
 
 
+# ------------------------------------------------------------------ priority
+
+def priority(f):
+    """base = mean(pct seed_money_in, pct n_seed_upstream, pct in_kzt (у seed — out_kzt), pct betweenness)
+    × вес роли (у «нет данных» — NO_DATA_WEIGHT) × WEAK_SEED_PRIORITY_MULT при weak_seed_link."""
+    pct = lambda s: s.rank(pct=True, method="average")
+    p_in = pct(f.in_kzt).where(~f.is_seed, pct(f.out_kzt))    # у seed вход занижен выгрузкой
+    base = (pct(f.seed_money_in) + pct(f.n_seed_upstream) + p_in + pct(f.betweenness)) / 4
+    w = np.where(f.no_data, NO_DATA_WEIGHT, f.role.map(ROLE_WEIGHT))
+    w = w * np.where(f.weak_seed_link, WEAK_SEED_PRIORITY_MULT, 1.0)
+    f["priority_score"] = np.round(base * w, 4)
+
+
+# ------------------------------------------------------------------ clusters.csv (после priority: топ по priority_score)
+
 def cluster_table(G, f, comms):
+    """clusters.csv: размер, seed, внутренний оборот, топ-5 gid по priority и текстовая гипотеза кластера."""
     rows = []
     for i, c in enumerate(comms):
         ff = f.loc[sorted(c)]
@@ -347,19 +370,6 @@ def cluster_table(G, f, comms):
     return pd.DataFrame(rows)
 
 
-# ------------------------------------------------------------------ priority
-
-def priority(f):
-    """base = mean(pct seed_money_in, pct n_seed_upstream, pct in_kzt (у seed — out_kzt), pct betweenness)
-    × вес роли (у «нет данных» — NO_DATA_WEIGHT) × WEAK_SEED_PRIORITY_MULT при weak_seed_link."""
-    pct = lambda s: s.rank(pct=True, method="average")
-    p_in = pct(f.in_kzt).where(~f.is_seed, pct(f.out_kzt))    # у seed вход занижен выгрузкой
-    base = (pct(f.seed_money_in) + pct(f.n_seed_upstream) + p_in + pct(f.betweenness)) / 4
-    w = np.where(f.no_data, NO_DATA_WEIGHT, f.role.map(ROLE_WEIGHT))
-    w = w * np.where(f.weak_seed_link, WEAK_SEED_PRIORITY_MULT, 1.0)
-    f["priority_score"] = np.round(base * w, 4)
-
-
 # ------------------------------------------------------------------ evidence / why
 
 def thr_deg(x) -> str:
@@ -382,6 +392,7 @@ def evidence(r, T) -> str:
 
 
 def _evidence(r, T) -> str:
+    """Строка evidence по сработавшему правилу: пороги → факт (≤200 символов)."""
     sd = "сам seed" if r.is_seed else f"seed-денег {pct_str(r.seed_share)}"   # у seed доля = 1 по построению
     if r.rule_hit == "nodata":
         if r.isolated:
@@ -417,6 +428,7 @@ def _evidence(r, T) -> str:
 
 
 def why(r, sync_days, T) -> str:
+    """Развёрнутое объяснение для top_nodes.csv: гипотеза роли, потоки, связь с seed, доп. признаки."""
     if r.no_data:
         parts = [("Нет данных для роли (правило 0, peripheral): seed без переводов в выгрузке — запросить операции клиента."
                   if r.isolated else "Нет данных для роли (правило 0, peripheral): колено 4, данные обрезаны: "
@@ -453,6 +465,7 @@ METRICS = ["in_deg", "out_deg", "in_kzt", "out_kzt", "in_tx", "out_tx", "pass_th
 
 
 def jnum(x):
+    """numpy-скаляр → JSON-тип; NaN → null, float округляется до 6 знаков."""
     if isinstance(x, (bool, np.bool_)):
         return bool(x)
     if isinstance(x, (int, np.integer)):
@@ -463,6 +476,7 @@ def jnum(x):
 
 
 def top_links(edges, g, side):
+    """До 5 крупнейших контрагентов узла на входе (side="in") или выходе ("out")."""
     key, other = ("dst", "src") if side == "in" else ("src", "dst")
     e = edges[edges[key] == g].sort_values(["sum_kzt", other], ascending=[False, True], kind="mergesort").head(5)
     # ЛОВУШКА: iterrows на числовом фрейме приводит строку к float64 и портит gid > 2^53 — только itertuples
@@ -509,6 +523,7 @@ def contract_tables(f, G, edges, tx):
     comp = {v: i for i, c in enumerate(comps) for v in c}
     m["component"] = m.gid.map(comp)
     m["component_size"] = m.component.map({i: len(c) for i, c in enumerate(comps)})
+    # np.where считает обе ветки: clip(lower=1) — чтобы не делить на 0 и не шуметь RuntimeWarning
     m["avg_in_tx"] = np.where(m.in_tx > 0, m.in_kzt / m.in_tx.clip(lower=1), 0.0).round(2)
     m["avg_out_tx"] = np.where(m.out_tx > 0, m.out_kzt / m.out_tx.clip(lower=1), 0.0).round(2)
     for c in ["in_kzt", "out_kzt", "seed_money_in"]:
@@ -535,8 +550,9 @@ def contract_tables(f, G, edges, tx):
 
 
 def outputs(f, G, edges, tx, ctab, per_cycles, sync_days, out_dir: Path, meta, Tr):
+    """Пишет nodes_roles.csv, clusters.csv, node_metrics.csv, edge_metrics.csv, top_nodes.csv, node_metrics.json."""
     out_dir.mkdir(parents=True, exist_ok=True)
-    f = f.sort_values(["priority_score"], ascending=False, kind="mergesort")
+    # полный порядок: priority ↓, при равенстве gid ↑ (gid уникален → вывод детерминирован)
     f = f.reset_index().sort_values(["priority_score", "gid"], ascending=[False, True], kind="mergesort")
     assert f.gid.dtype == np.int64 and f.gid.nunique() == 2248
 
@@ -582,6 +598,7 @@ def outputs(f, G, edges, tx, ctab, per_cycles, sync_days, out_dir: Path, meta, T
 # ------------------------------------------------------------------ checks
 
 def checks(nr, top, ctab, nmc, emc, out_dir: Path):
+    """Инварианты выгрузок и контракта main; падает assert'ом при нарушении."""
     assert len(nr) == 2248 and nr.gid.nunique() == 2248 and nr.gid.dtype == np.int64
     assert nr.role.isin(ROLES).all()
     assert nr.role_score.between(0, 1).all() and nr.priority_score.between(0, 1).all()
@@ -619,6 +636,7 @@ def checks(nr, top, ctab, nmc, emc, out_dir: Path):
 
 
 def review(nr, top):
+    """Печать для ручного ревью: распределение ролей, топ-3 на роль, топ-20 по приоритету."""
     print("\n" + "=" * 72 + "\nРЕВЬЮ\n" + "=" * 72)
     print("Роли:", nr.role.value_counts().reindex(ROLES, fill_value=0).to_dict())
     for role in ROLES:
@@ -648,6 +666,7 @@ def compute(edges, nodes, tx, T_base=T):
 
 
 def main():
+    """CLI: load → compute → clusters → priority → evidence → выгрузки → проверки → ревью."""
     ap = argparse.ArgumentParser()
     ap.add_argument("--data", default="../task/data")
     ap.add_argument("--out", default="../out")
