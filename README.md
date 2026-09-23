@@ -108,4 +108,4 @@ curl localhost:3001/api/nodes/100000003684369100
 
 ## Deployed-версия
 
-Нет.
+https://graf-deneg-production.up.railway.app — один сервис Railway: `bun run build` собирает клиент, `bun run start` запускает сервер, который отдаёт `/api` и `client/dist`. Деплой из локальной копии: `railway up --service graf-deneg` (репозиторий организации не подключён к Railway, автодеплоя по push нет).

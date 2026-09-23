@@ -1,8 +1,13 @@
 {
   "name": "graf-deneg",
   "private": true,
-  "workspaces": ["client", "server"],
+  "workspaces": [
+    "client",
+    "server"
+  ],
   "scripts": {
-    "dev": "bun --filter '*' dev"
+    "dev": "bun --filter '*' dev",
+    "build": "cd client && bun run build",
+    "start": "cd server && bun run start"
   }
 }
