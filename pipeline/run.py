@@ -470,22 +470,93 @@ def top_links(edges, g, side):
             for x in e.itertuples(index=False)]
 
 
-def outputs(f, edges, ctab, per_cycles, sync_days, out_dir: Path, meta, Tr):
+def write_csv(df, path):
+    """docs/PIPELINE_CONTRACT.md: булевы — true/false строчными, NaN — пустая строка."""
+    d = df.copy()
+    for c in d.select_dtypes(bool).columns:
+        d[c] = d[c].map({True: "true", False: "false"})
+    d.to_csv(path, index=False)
+
+
+NODE_METRICS_COLS = ["gid", "depth", "is_seed", "in_deg", "out_deg", "in_kzt", "out_kzt", "in_tx", "out_tx",
+                     "n_counterparties", "first_date", "last_date", "active_days", "pass_through", "truncated_by_depth",
+                     "real_sink", "no_edges", "pagerank", "betweenness", "component", "component_size", "in_cycle",
+                     "same_day_bursts", "avg_in_tx", "avg_out_tx", "seed_money_in", "seed_share", "cluster_id"]
+EDGE_METRICS_COLS = ["src", "dst", "sum_kzt", "n_tx", "depth", "src_depth", "dst_depth", "min_tx", "max_tx",
+                     "first_date", "last_date", "active_days", "mutual", "back_edge"]
+
+
+def contract_tables(f, G, edges, tx):
+    """node_metrics.csv и edge_metrics.csv по docs/PIPELINE_CONTRACT.md (ветка main). f — отсортирован как nodes_roles."""
+    m = f.copy()
+    # транзакции с точки зрения узла: (gid, контрагент, направление, дата), узел — src или dst
+    both = pd.concat([tx.rename(columns={"src": "gid", "dst": "other"}).assign(dir="out"),
+                      tx.rename(columns={"dst": "gid", "src": "other"}).assign(dir="in")])[["gid", "other", "dir", "date"]]
+    nb = pd.concat([edges.rename(columns={"src": "gid", "dst": "other"}),
+                    edges.rename(columns={"dst": "gid", "src": "other"})])[["gid", "other"]].drop_duplicates()
+    m["n_counterparties"] = nb.groupby("gid").size().reindex(m.gid, fill_value=0).values
+    d = both.groupby("gid").date
+    m["first_date"] = d.min().dt.strftime("%Y-%m-%d").reindex(m.gid).fillna("").values
+    m["last_date"] = d.max().dt.strftime("%Y-%m-%d").reindex(m.gid).fillna("").values
+    m["active_days"] = d.nunique().reindex(m.gid, fill_value=0).values
+    # всплеск: ≥2 перевода одному контрагенту (или от одного) в один день; направления раздельно — как в run.py ветки main
+    bursts = both.groupby(["gid", "other", "dir", "date"]).size()
+    m["same_day_bursts"] = (bursts >= 2).groupby(level="gid").sum().reindex(m.gid, fill_value=0).values
+    m["truncated_by_depth"] = m.truncated
+    m["real_sink"] = (m.depth < 4) & ~m.is_seed & (m.out_deg == 0)
+    m["no_edges"] = m.isolated
+    comps = sorted(nx.weakly_connected_components(G), key=lambda c: (-len(c), min(c)))
+    comp = {v: i for i, c in enumerate(comps) for v in c}
+    m["component"] = m.gid.map(comp)
+    m["component_size"] = m.component.map({i: len(c) for i, c in enumerate(comps)})
+    m["avg_in_tx"] = np.where(m.in_tx > 0, m.in_kzt / m.in_tx.clip(lower=1), 0.0).round(2)
+    m["avg_out_tx"] = np.where(m.out_tx > 0, m.out_kzt / m.out_tx.clip(lower=1), 0.0).round(2)
+    for c in ["in_kzt", "out_kzt", "seed_money_in"]:
+        m[c] = m[c].round(2)
+    for c in ["pass_through", "seed_share"]:
+        m[c] = m[c].round(4)
+    m["pagerank"] = m.pagerank.round(8)
+    m["betweenness"] = m.betweenness.round(8)
+
+    e = edges[["src", "dst", "sum_kzt", "n_tx", "depth"]].copy()
+    dep = f.set_index("gid").depth
+    e["src_depth"] = e.src.map(dep).values
+    e["dst_depth"] = e.dst.map(dep).values
+    g = tx.groupby(["src", "dst"]).agg(min_tx=("sum_kzt", "min"), max_tx=("sum_kzt", "max"),
+                                       first_date=("date", "min"), last_date=("date", "max"),
+                                       active_days=("date", "nunique"))
+    g["first_date"] = g.first_date.dt.strftime("%Y-%m-%d")
+    g["last_date"] = g.last_date.dt.strftime("%Y-%m-%d")
+    e = e.join(g, on=["src", "dst"])
+    pairs = set(zip(edges.src, edges.dst))
+    e["mutual"] = [(d_, s_) in pairs for s_, d_ in zip(e.src, e.dst)]
+    e["back_edge"] = e.dst_depth <= e.src_depth
+    return m[NODE_METRICS_COLS], e[EDGE_METRICS_COLS]
+
+
+def outputs(f, G, edges, tx, ctab, per_cycles, sync_days, out_dir: Path, meta, Tr):
     out_dir.mkdir(parents=True, exist_ok=True)
     f = f.sort_values(["priority_score"], ascending=False, kind="mergesort")
     f = f.reset_index().sort_values(["priority_score", "gid"], ascending=[False, True], kind="mergesort")
     assert f.gid.dtype == np.int64 and f.gid.nunique() == 2248
 
-    nr = f[["gid", "role", "role_score", "cluster_id", "priority_score", "evidence"] + METRICS].copy()
+    # role_rule: id сработавшего правила (контракт main); правило 0 делится на два случая
+    f["role_rule"] = np.where(f.rule_hit == "nodata",
+                              np.where(f.isolated, "no_data_isolated_seed", "no_data_truncated"),
+                              np.where(f.rule_hit == "none", "peripheral", f.rule_hit))
+    nr = f[["gid", "role", "role_score", "cluster_id", "priority_score", "evidence"] + METRICS + ["role_rule"]].copy()
     for c in ["in_kzt", "out_kzt", "seed_money_in"]:
         nr[c] = nr[c].round(2)
     for c in ["pass_through", "seed_share", "fast_out_share", "max_payer_share"]:
         nr[c] = nr[c].round(4)
     nr["betweenness"] = nr.betweenness.round(8)
     nr["pagerank"] = nr.pagerank.round(8)
-    nr.to_csv(out_dir / "nodes_roles.csv", index=False)
+    write_csv(nr, out_dir / "nodes_roles.csv")
 
-    ctab.to_csv(out_dir / "clusters.csv", index=False)
+    write_csv(ctab, out_dir / "clusters.csv")
+    nmc, emc = contract_tables(f, G, edges, tx)
+    write_csv(nmc, out_dir / "node_metrics.csv")
+    write_csv(emc, out_dir / "edge_metrics.csv")
 
     top = f.head(30).copy()
     top.insert(0, "rank", range(1, len(top) + 1))
@@ -505,12 +576,12 @@ def outputs(f, edges, ctab, per_cycles, sync_days, out_dir: Path, meta, Tr):
         nm[str(g)] = d
     nm["_meta"] = meta
     (out_dir / "node_metrics.json").write_text(json.dumps(nm, ensure_ascii=False, indent=1))
-    return nr, top
+    return nr, top, nmc, emc
 
 
 # ------------------------------------------------------------------ checks
 
-def checks(nr, top, ctab, out_dir: Path):
+def checks(nr, top, ctab, nmc, emc, out_dir: Path):
     assert len(nr) == 2248 and nr.gid.nunique() == 2248 and nr.gid.dtype == np.int64
     assert nr.role.isin(ROLES).all()
     assert nr.role_score.between(0, 1).all() and nr.priority_score.between(0, 1).all()
@@ -523,6 +594,20 @@ def checks(nr, top, ctab, out_dir: Path):
     assert set(nr.cluster_id) == set(ctab.cluster_id) and ctab.cluster_id.is_unique
     assert (ctab.hypothesis.str.len() > 0).all()
     assert int(nr.truncated.sum()) == 444
+    # контракт main (docs/PIPELINE_CONTRACT.md)
+    assert list(nr.columns[:6]) == ["gid", "role", "role_score", "cluster_id", "priority_score", "evidence"]
+    assert nr.role_rule.notna().all() and (nr.role_rule == "no_data_truncated").sum() == 444
+    assert (nr.role_rule == "no_data_isolated_seed").sum() == 19
+    assert len(nmc) == 2248 and list(nmc.columns) == NODE_METRICS_COLS and set(nmc.gid) == set(nr.gid)
+    assert len(emc) == 3119 and list(emc.columns) == EDGE_METRICS_COLS and emc.first_date.notna().all()
+    assert int(nmc.truncated_by_depth.sum()) == 444 and int(nmc.no_edges.sum()) == 19
+    for fn in ["nodes_roles.csv", "node_metrics.csv", "edge_metrics.csv"]:
+        head = (out_dir / fn).read_text().splitlines()[1:]
+        assert not any(",True," in l or ",False," in l or l.endswith((",True", ",False")) for l in head), fn
+    top_p = nr.set_index("gid").priority_score
+    for tg in ctab.top_gids:
+        p = [top_p[int(g)] for g in tg.split(";")]
+        assert p == sorted(p, reverse=True), tg
     # JSON: ключи — все gid строками + _meta; все gid внутри (top_in/top_out/cycles) существуют в nodes
     nm = json.loads((out_dir / "node_metrics.json").read_text())
     gids = set(nr.gid.astype(str))
@@ -586,8 +671,8 @@ def main():
         n_clusters_multi=int(sum(len(c) > 1 for c in comms)),
         turnover_kzt=round(float(edges.sum_kzt.sum())),
     )
-    nr, top = outputs(f, edges, ctab, per_cycles, sync_days, Path(a.out), meta, Tr)
-    checks(nr, top, ctab, Path(a.out))
+    nr, top, nmc, emc = outputs(f, G, edges, tx, ctab, per_cycles, sync_days, Path(a.out), meta, Tr)
+    checks(nr, top, ctab, nmc, emc, Path(a.out))
     review(nr, top)
     print("\nПороги:", {k: v for k, v in meta["thresholds"].items() if k in PCT_THRESHOLDS})
     print(f"\nВыгрузки: {Path(a.out).resolve()}  | время {time.perf_counter() - t0:.1f} с")
