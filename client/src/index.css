@@ -183,9 +183,3 @@
   input, textarea, select { font-size: 16px; }
 }
 
-/* sonner: close button in the top-right corner instead of top-left */
-[data-sonner-toast] {
-  --toast-close-button-start: unset;
-  --toast-close-button-end: 0;
-  --toast-close-button-transform: translate(35%, -35%);
-}
