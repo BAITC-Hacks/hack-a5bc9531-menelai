@@ -16,6 +16,16 @@
 
 _Будет описано после реализации пайплайна:_ `.parquet` → граф → метрики → роли и кластеры → приоритет → `nodes_roles.csv`, `clusters.csv`, `top_nodes.csv` + экран просмотра.
 
+### Пайплайн `graph-money/`
+
+Отдельный Python-пайплайн с полным расчётом: признаки, консенсус-кластеры, роли по явным правилам, приоритет, три CSV по ТЗ и офлайн-просмотрщик `viewer.html`. К нему прилагаются проверки допущений и 89 тестов. Пересчёт занимает около 20 секунд:
+
+```bash
+cd graph-money && python pipeline.py --data ../task/data --out output
+```
+
+Подробности в [graph-money/README.md](graph-money/README.md). Как из разведки данных получились правила — в [graph-money/docs/ANALYSIS.md](graph-money/docs/ANALYSIS.md). Результаты пишутся в `graph-money/output/`, а не в `out/`: сервер по-прежнему читает `out/` от `pipeline/run.py`.
+
 ## Технологии
 
 | Часть | Стек |

@@ -1,0 +1,10 @@
+# расчёт
+pandas>=1.5
+numpy>=1.23
+networkx>=3.0
+pyarrow>=10
+# проверки допущений (assumption_checks.py)
+scikit-learn>=1.1
+# тесты
+pytest>=7
+# необязательно: тест просмотрщика в браузере — pip install playwright && playwright install chromium

@@ -1,0 +1,43 @@
+{
+  "period": "2026-07-01 — 2026-07-31",
+  "n_nodes": 2248,
+  "n_seed": 81,
+  "roles": {
+    "coordinator": 6,
+    "consolidator": 25,
+    "distributor": 58,
+    "transit": 49,
+    "terminal": 323,
+    "peripheral": 1787
+  },
+  "tiers": {
+    "B": 1751,
+    "A": 463,
+    "C": 34
+  },
+  "n_clusters": 89,
+  "clusters_with_many_seeds": 9,
+  "cluster_types": {
+    "periphery": 22,
+    "fan_out": 18,
+    "fragment": 16,
+    "transit_chain": 14,
+    "seed_periphery": 8,
+    "collection": 6,
+    "core": 5,
+    "no_data": 1
+  },
+  "n_cycles": 468,
+  "truncation_detected": true,
+  "dates_have_time": false,
+  "data_quality": [],
+  "checks_passed": true,
+  "timings_sec": {
+    "загрузка и проверка данных": 0.11,
+    "признаки, кластеры, роли, приоритет": 10.78,
+    "выгрузки": 0.06,
+    "устойчивость сети и запросы данных": 4.85,
+    "просмотрщик": 2.03,
+    "итого": 17.9
+  }
+}

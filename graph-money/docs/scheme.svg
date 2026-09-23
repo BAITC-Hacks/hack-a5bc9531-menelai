@@ -1,0 +1,104 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="580" viewBox="0 0 1280 580" font-family="Segoe UI, Roboto, Helvetica, Arial, sans-serif">
+  <defs>
+    <marker id="a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#5d6670"/>
+    </marker>
+    <style>
+      .box{fill:#ffffff;stroke:#c9d1d9;stroke-width:1.5;rx:10}
+      .t{font-size:16px;font-weight:600;fill:#1f2328}
+      .s{font-size:12.5px;fill:#5d6670}
+      .n{font-size:11px;font-weight:700;fill:#2f6fdb;letter-spacing:.06em}
+      .ln{stroke:#5d6670;stroke-width:1.6;fill:none;marker-end:url(#a)}
+    </style>
+  </defs>
+  <rect width="1280" height="580" fill="#f6f7f9"/>
+  <text x="40" y="44" font-size="22" font-weight="700" fill="#1f2328">Граф денег: данные → метрики → роли → интерфейс</text>
+  <text x="40" y="68" class="s">Роль определяют факты и структура графа; гипотезы влияют только на уверенность, приоритет и текст</text>
+
+  <!-- 1 данные -->
+  <rect class="box" x="40" y="100" width="200" height="250"/>
+  <text x="56" y="124" class="n">1 · ДАННЫЕ</text>
+  <text x="56" y="150" class="t">3 файла parquet</text>
+  <text x="56" y="176" class="s">nodes: gid, колено, seed</text>
+  <text x="56" y="196" class="s">edges: кто → кому, сумма</text>
+  <text x="56" y="216" class="s">transactions: даты, суммы</text>
+  <text x="56" y="250" class="t" font-size="14">Очистка и проверка</text>
+  <text x="56" y="272" class="s">петли, дубли, чужие gid,</text>
+  <text x="56" y="290" class="s">суммы ≤ 0, float-gid,</text>
+  <text x="56" y="308" class="s">сверка edges ↔ transactions</text>
+  <text x="56" y="332" class="s">→ отчёт о качестве</text>
+
+  <!-- 2 признаки -->
+  <rect class="box" x="290" y="100" width="230" height="250"/>
+  <text x="306" y="124" class="n">2 · ПРИЗНАКИ</text>
+  <text x="306" y="150" class="t">Метрики узла</text>
+  <text x="306" y="176" class="s">плательщики / получатели, суммы</text>
+  <text x="306" y="196" class="s">пропуск (где вход надёжен)</text>
+  <text x="306" y="216" class="s">обрыв колена, неполный вход</text>
+  <text x="306" y="236" class="s">seed-деньги (смешивание)</text>
+  <text x="306" y="256" class="s">связи с seed, круги 3–5, A↔B</text>
+  <text x="306" y="276" class="s">скорость пропуска ≤ 2 дней</text>
+  <text x="306" y="296" class="s">синхронный сбор, конец периода</text>
+
+  <!-- 3 роли / кластеры / приоритет -->
+  <rect class="box" x="570" y="100" width="270" height="118"/>
+  <text x="586" y="124" class="n">3а · РОЛИ</text>
+  <text x="586" y="148" class="t">Правила с порогами</text>
+  <text x="586" y="170" class="s">координатор · консолидатор</text>
+  <text x="586" y="188" class="s">распределитель · транзит · конечный</text>
+  <text x="586" y="206" class="s">+ role_score, evidence, уровень A/B/C</text>
+
+  <rect class="box" x="570" y="232" width="270" height="118"/>
+  <text x="586" y="256" class="n">3б · КЛАСТЕРЫ</text>
+  <text x="586" y="280" class="t">Консенсус 30 × Louvain</text>
+  <text x="586" y="302" class="s">вес = сумма; устойчивость кластера</text>
+  <text x="586" y="320" class="s">гипотеза из фактов: тип, ключевой</text>
+  <text x="586" y="338" class="s">узел, seed, возвраты, «звезда»</text>
+
+  <rect class="box" x="570" y="364" width="270" height="100"/>
+  <text x="586" y="388" class="n">3в · ПРИОРИТЕТ</text>
+  <text x="586" y="412" class="t">По метрике от каждой семьи</text>
+  <text x="586" y="434" class="s">роль 35% · seed-деньги 20% · связи,</text>
+  <text x="586" y="452" class="s">оборот, seed-связи, круги · seed × 0.85</text>
+
+  <!-- 4 выходы -->
+  <rect class="box" x="890" y="100" width="170" height="250"/>
+  <text x="906" y="124" class="n">4 · ВЫГРУЗКИ</text>
+  <text x="906" y="150" class="t">По схеме ТЗ</text>
+  <text x="906" y="176" class="s">nodes_roles.csv</text>
+  <text x="906" y="196" class="s">clusters.csv</text>
+  <text x="906" y="216" class="s">top_nodes.csv</text>
+  <text x="906" y="250" class="t" font-size="14">Дополнительно</text>
+  <text x="906" y="272" class="s">*_ext.csv с метриками</text>
+  <text x="906" y="290" class="s">resilience.csv</text>
+  <text x="906" y="308" class="s">data_requests.csv</text>
+  <text x="906" y="326" class="s">assumptions.csv</text>
+
+  <!-- 5 интерфейс -->
+  <rect class="box" x="1100" y="100" width="150" height="250"/>
+  <text x="1116" y="124" class="n">5 · ЭКРАН</text>
+  <text x="1116" y="150" class="t">viewer.html</text>
+  <text x="1116" y="176" class="s">офлайн, один файл</text>
+  <text x="1116" y="196" class="s">поиск по gid</text>
+  <text x="1116" y="216" class="s">окружение 1–2 шага</text>
+  <text x="1116" y="236" class="s">цвет: роль/кластер</text>
+  <text x="1116" y="256" class="s">карточка узла</text>
+  <text x="1116" y="276" class="s">«кто собирает</text>
+  <text x="1116" y="294" class="s">с этих пятерых?»</text>
+
+  <!-- стрелки -->
+  <path class="ln" d="M240,225 H286"/>
+  <path class="ln" d="M520,200 C545,200 545,160 566,160"/>
+  <path class="ln" d="M520,225 H566"/>
+  <path class="ln" d="M520,250 C545,250 545,414 566,414"/>
+  <path class="ln" d="M840,160 C865,160 865,210 886,210"/>
+  <path class="ln" d="M840,290 H886"/>
+  <path class="ln" d="M840,414 C868,414 868,240 886,240"/>
+  <path class="ln" d="M1060,225 H1096"/>
+
+  <!-- проверки -->
+  <rect x="40" y="484" width="1210" height="76" rx="10" fill="#eaf1fd" stroke="#b9cff5"/>
+  <text x="58" y="506" class="n">ПРОВЕРКИ</text>
+  <text x="58" y="526" class="s">assumption_checks.py: чувствительность к каждому допущению · веса приоритета · модель seed-денег · устойчивость кластеров · шум и выпадение данных · шаблонность текстов</text>
+  <text x="58" y="546" class="s">pytest: воспроизводимость (побайтно) · граничные случаи и «ломаный» вход · инварианты правил · устойчивость · цифры ТЗ на реальных данных</text>
+</svg>
