@@ -30,7 +30,8 @@ cd pipeline && uv sync && uv run python run.py   # дефолты: --data ../tas
 | cluster_id | int | из кластеризации; узлы без рёбер получают свой отдельный id |
 | priority_score | float 0–1 | приоритет |
 | evidence | str ≤ 200 | обоснование с числами |
-| role_rule | str | id правила, которое сработало (доп. колонка) |
+
+Ровно эти 6 колонок в этом порядке, других нет. Метрики и `role_rule` лежат в `node_metrics.csv`.
 
 ### `out/clusters.csv` (обязательный по ТЗ)
 
@@ -72,6 +73,13 @@ cd pipeline && uv sync && uv run python run.py   # дефолты: --data ../tas
 | seed_money_in | float, KZT, оценка денег, пришедших от seed по цепочке |
 | seed_share | float 0–1 |
 | cluster_id | int, тот же, что в nodes_roles.csv |
+| n_seed_upstream | int, сколько разных seed достигают узла по направленным путям ≤ 4 шага |
+| fast_out_share | float 0–1, доля исходящей суммы, ушедшей ≤ 2 дней после входящего перевода |
+| sync_in_events | int, число дней, когда ≥ 3 разных плательщиков перевели узлу в один день |
+| max_payer_share | float 0–1, доля крупнейшего плательщика во входе; пусто, если вход 0 |
+| no_data | bool, `truncated_by_depth` или seed без рёбер — роль по данным не определить |
+| nearest_role | str, для peripheral — ближайшая роль (пусто у no_data), для остальных — сама роль |
+| role_rule | str, id сработавшего правила: имя роли, `peripheral`, `no_data_truncated`, `no_data_isolated_seed` |
 
 ### `out/edge_metrics.csv` — 3 119 строк
 

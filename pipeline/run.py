@@ -481,7 +481,10 @@ def write_csv(df, path):
 NODE_METRICS_COLS = ["gid", "depth", "is_seed", "in_deg", "out_deg", "in_kzt", "out_kzt", "in_tx", "out_tx",
                      "n_counterparties", "first_date", "last_date", "active_days", "pass_through", "truncated_by_depth",
                      "real_sink", "no_edges", "pagerank", "betweenness", "component", "component_size", "in_cycle",
-                     "same_day_bursts", "avg_in_tx", "avg_out_tx", "seed_money_in", "seed_share", "cluster_id"]
+                     "same_day_bursts", "avg_in_tx", "avg_out_tx", "seed_money_in", "seed_share", "cluster_id",
+                     # перенесены из nodes_roles.csv (там только 6 колонок схемы жюри)
+                     "n_seed_upstream", "fast_out_share", "sync_in_events", "max_payer_share", "no_data",
+                     "nearest_role", "role_rule"]
 EDGE_METRICS_COLS = ["src", "dst", "sum_kzt", "n_tx", "depth", "src_depth", "dst_depth", "min_tx", "max_tx",
                      "first_date", "last_date", "active_days", "mutual", "back_edge"]
 
@@ -513,7 +516,7 @@ def contract_tables(f, G, edges, tx):
     m["avg_out_tx"] = np.where(m.out_tx > 0, m.out_kzt / m.out_tx.clip(lower=1), 0.0).round(2)
     for c in ["in_kzt", "out_kzt", "seed_money_in"]:
         m[c] = m[c].round(2)
-    for c in ["pass_through", "seed_share"]:
+    for c in ["pass_through", "seed_share", "fast_out_share", "max_payer_share"]:
         m[c] = m[c].round(4)
     m["pagerank"] = m.pagerank.round(8)
     m["betweenness"] = m.betweenness.round(8)
@@ -544,13 +547,8 @@ def outputs(f, G, edges, tx, ctab, per_cycles, sync_days, out_dir: Path, meta, T
     f["role_rule"] = np.where(f.rule_hit == "nodata",
                               np.where(f.isolated, "no_data_isolated_seed", "no_data_truncated"),
                               np.where(f.rule_hit == "none", "peripheral", f.rule_hit))
-    nr = f[["gid", "role", "role_score", "cluster_id", "priority_score", "evidence"] + METRICS + ["role_rule"]].copy()
-    for c in ["in_kzt", "out_kzt", "seed_money_in"]:
-        nr[c] = nr[c].round(2)
-    for c in ["pass_through", "seed_share", "fast_out_share", "max_payer_share"]:
-        nr[c] = nr[c].round(4)
-    nr["betweenness"] = nr.betweenness.round(8)
-    nr["pagerank"] = nr.pagerank.round(8)
+    # nodes_roles.csv — ровно схема жюри; метрики и role_rule — в node_metrics.csv
+    nr = f[["gid", "role", "role_score", "cluster_id", "priority_score", "evidence"]].copy()
     write_csv(nr, out_dir / "nodes_roles.csv")
 
     write_csv(ctab, out_dir / "clusters.csv")
@@ -588,16 +586,15 @@ def checks(nr, top, ctab, nmc, emc, out_dir: Path):
     ev = nr.evidence.astype(str)
     assert (ev.str.len() > 0).all() and (ev.str.len() <= 200).all(), ev[ev.str.len() > 200].head()
     assert nr.cluster_id.notna().all() and (nr.cluster_id >= 0).all()
-    iso_seed = nr[nr.is_seed & (nr.in_deg + nr.out_deg == 0)]
+    iso_seed = nmc[nmc.is_seed & (nmc.in_deg + nmc.out_deg == 0)]
     assert len(iso_seed) == 19 and iso_seed.cluster_id.notna().all() and (iso_seed.seed_share == 0).all()
     assert len(top) >= 20 and list(top["rank"]) == list(range(1, len(top) + 1))
     assert set(nr.cluster_id) == set(ctab.cluster_id) and ctab.cluster_id.is_unique
     assert (ctab.hypothesis.str.len() > 0).all()
-    assert int(nr.truncated.sum()) == 444
     # контракт main (docs/PIPELINE_CONTRACT.md)
-    assert list(nr.columns[:6]) == ["gid", "role", "role_score", "cluster_id", "priority_score", "evidence"]
-    assert nr.role_rule.notna().all() and (nr.role_rule == "no_data_truncated").sum() == 444
-    assert (nr.role_rule == "no_data_isolated_seed").sum() == 19
+    assert list(nr.columns) == ["gid", "role", "role_score", "cluster_id", "priority_score", "evidence"]
+    assert nmc.role_rule.notna().all() and (nmc.role_rule == "no_data_truncated").sum() == 444
+    assert (nmc.role_rule == "no_data_isolated_seed").sum() == 19
     assert len(nmc) == 2248 and list(nmc.columns) == NODE_METRICS_COLS and set(nmc.gid) == set(nr.gid)
     assert len(emc) == 3119 and list(emc.columns) == EDGE_METRICS_COLS and emc.first_date.notna().all()
     assert int(nmc.truncated_by_depth.sum()) == 444 and int(nmc.no_edges.sum()) == 19

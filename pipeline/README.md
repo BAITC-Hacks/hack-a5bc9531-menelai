@@ -29,25 +29,24 @@ python run.py
 
 | Файл | Строк (`wc -l`) | Содержимое |
 |---|---|---|
-| `nodes_roles.csv` | 2 249 = 2 248 + заголовок | 28 колонок |
+| `nodes_roles.csv` | 2 249 = 2 248 + заголовок | 6 колонок |
 | `clusters.csv` | 92 = 91 кластер + заголовок | 6 колонок |
 | `top_nodes.csv` | 31 = 30 + заголовок | 5 колонок |
-| `node_metrics.csv` | 2 249 = 2 248 + заголовок | 28 колонок |
+| `node_metrics.csv` | 2 249 = 2 248 + заголовок | 35 колонок |
 | `edge_metrics.csv` | 3 120 = 3 119 + заголовок | 14 колонок |
 | `node_metrics.json` | — | 2 248 ключей-gid + `_meta` |
 
 ## 3. Что на выходе
 
 **`nodes_roles.csv`** — строка на каждый из 2 248 узлов, отсортирована по `priority_score`.
-- Обязательные колонки по ТЗ: `gid, role, role_score, cluster_id, priority_score, evidence`.
-- Дополнительные метрики (21): `in_deg, out_deg, in_kzt, out_kzt, in_tx, out_tx, pass_through, seed_share, seed_money_in, n_seed_upstream, betweenness, pagerank, in_cycle, fast_out_share, sync_in_events, truncated, depth, is_seed, max_payer_share, no_data, nearest_role`. Их смысл описан в `RULES.md` §0.
-- Последняя колонка `role_rule` — id сработавшего правила: имя роли для ролей 1–5, `peripheral` (ни одно правило не сработало), `no_data_truncated` (колено 4, обход обрезан), `no_data_isolated_seed` (seed без рёбер).
+- Ровно 6 колонок схемы ТЗ, в этом порядке: `gid, role, role_score, cluster_id, priority_score, evidence`. Других колонок нет.
+- Метрики узла и `role_rule` лежат в `node_metrics.csv` (см. ниже).
 
 **`clusters.csv`** — `cluster_id, n_nodes, n_seed, sum_kzt_internal, top_gids, hypothesis`. Колонка `top_gids` содержит до 5 gid кластера с наибольшим приоритетом через `;`. Гипотеза собирается по составу кластера: самая информативная роль, доля seed, роли, крупнейший узел и внутренний оборот. Кластер 0: «Гипотеза: признаки координирующего ядра… 277 узлов, seed 1; роли: coordinator 10, consolidator 14, …».
 
 **`top_nodes.csv`** — `rank, gid, role, priority_score, why`, топ-30 (ТЗ требует ≥ 20). Колонка `why` раскрывает, почему узел в топе: суммы и число контрагентов, число seed выше по потоку, seed-деньги на входе, циклы, синхронные входы, быстрый вывод, посредничество и кластер. В текущем топ-30: 23 consolidator и 7 coordinator.
 
-**`node_metrics.csv`, `edge_metrics.csv`** — промежуточный слой по контракту `docs/PIPELINE_CONTRACT.md` (ветка `main`), для сервера. В `node_metrics.csv` по одной строке на узел: колонки контракта `gid … cluster_id`. Значения совпадают с `nodes_roles.csv`: `truncated_by_depth` = `truncated`, `no_edges` = узел без рёбер, `real_sink` = колено < 4, не seed и `out_deg = 0`. Дополнительно в файле: даты и `active_days` по переводам (узел как отправитель или получатель); `component` — слабосвязная компонента (0 = крупнейшая, дальше по убыванию размера, при равном размере раньше идёт компонента с меньшим gid); `same_day_bursts` — число пар (контрагент, день, направление) с ≥ 2 переводами. `edge_metrics.csv` — строка на ребро из `edges.parquet`: суммы, min/max перевода, даты, `mutual` (есть встречное ребро) и `back_edge` (`dst_depth ≤ src_depth`). Во всех CSV булевы значения пишутся как `true`/`false`, даты — `YYYY-MM-DD`, пустое значение — пустая строка.
+**`node_metrics.csv`, `edge_metrics.csv`** — промежуточный слой по контракту `docs/PIPELINE_CONTRACT.md` (ветка `main`), для сервера. В `node_metrics.csv` по одной строке на узел: колонки контракта `gid … cluster_id`, затем метрики правил `n_seed_upstream, fast_out_share, sync_in_events, max_payer_share, no_data, nearest_role` (смысл — в `RULES.md` §0) и `role_rule` — id сработавшего правила: имя роли для ролей 1–5, `peripheral` (ни одно правило не сработало), `no_data_truncated` (колено 4, обход обрезан), `no_data_isolated_seed` (seed без рёбер). `truncated_by_depth` = `truncated` из `RULES.md`, `no_edges` = узел без рёбер, `real_sink` = колено < 4, не seed и `out_deg = 0`. Дополнительно в файле: даты и `active_days` по переводам (узел как отправитель или получатель); `component` — слабосвязная компонента (0 = крупнейшая, дальше по убыванию размера, при равном размере раньше идёт компонента с меньшим gid); `same_day_bursts` — число пар (контрагент, день, направление) с ≥ 2 переводами. `edge_metrics.csv` — строка на ребро из `edges.parquet`: суммы, min/max перевода, даты, `mutual` (есть встречное ребро) и `back_edge` (`dst_depth ≤ src_depth`). Во всех CSV булевы значения пишутся как `true`/`false`, даты — `YYYY-MM-DD`, пустое значение — пустая строка.
 
 **`node_metrics.json`** — данные для интерфейса (их читает `server/src/data/`). По каждому gid (ключ — строка: gid больше 2⁵³ и в float теряет точность) хранятся все метрики выше, а также `role, role_score, priority_score, cluster_id, evidence, weak_seed_link`, до 3 кратчайших циклов (`cycles`), даты синхронных входов (`sync_days`) и топ-5 входящих и исходящих контрагентов (`top_in`, `top_out`). В ключе `_meta` лежат итоговые пороги с перцентилями, веса ролей, число узлов по ролям и итоги по графу: 3 119 рёбер, 4 840 переводов, 468 циклов длиной ≤ 5, 91 кластер (72 многоузловых), оборот 365 890 012 ₸.
 
