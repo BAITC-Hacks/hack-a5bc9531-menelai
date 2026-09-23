@@ -77,6 +77,8 @@ export type Metrics = {
   priority_score: number
   cluster_id: number
   evidence: string
+  /** pipeline v2: structural role, but low share of seed money */
+  weak_seed_link?: boolean
   cycles: Gid[][]
   sync_days: string[]
   top_in: Link[]

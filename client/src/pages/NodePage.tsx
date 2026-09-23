@@ -163,6 +163,7 @@ function ruleRows(m: Metrics): Row[] {
         { rule: 'пропуск от', key: 'tr_pass_lo', fmt: pass, fact: passFact },
         { rule: 'пропуск до', key: 'tr_pass_hi', fmt: pass, fact: passFact },
         { rule: 'вход ≥', key: 'tr_in_kzt', fmt: kzt, fact: kzt(m.in_kzt) },
+        { rule: 'вывод ≤ 2 дн. ≥', key: 'tr_fast_min', fmt: pct, fact: pct(m.fast_out_share) },
       ]
     case 'terminal':
       return [
@@ -285,6 +286,8 @@ function Warnings({ m }: { m: Metrics }) {
   if (m.truncated) notes.push('Колено 4 без исходящих: обход оборван на этом колене, «нет исходящих» ничего не значит.')
   else if (!m.is_seed && m.depth >= 1 && m.depth <= 3 && m.out_deg === 0)
     notes.push(`Колено ${m.depth} без исходящих: исходящие выгружались и их нет — настоящий сток.`)
+  if (m.weak_seed_link)
+    notes.push(`Слабая связь с деньгами seed: доля seed-денег ${pct(m.seed_share)} — роль по структуре, но «окраска» денег низкая.`)
   if (!notes.length) return null
   return (
     <section className="grid gap-2 rounded-xl border border-l-4 border-l-gold bg-card p-4" aria-label="Предупреждения о данных">

@@ -94,6 +94,13 @@ bun run dev
 
 Клиент: http://localhost:5173, API: http://localhost:3001. Путь к данным по умолчанию — `task/data`, переопределяется переменной `DATA_DIR`.
 
+Если порты заняты другой копией проекта, сервер и прокси клиента переназначаются переменными:
+
+```bash
+cd server && PORT=3002 bun run dev
+cd client && API_PROXY=http://localhost:3002 bunx vite --port 5180
+```
+
 ## Как проверить
 
 ```bash

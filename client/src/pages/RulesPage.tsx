@@ -1,7 +1,7 @@
 import { Bar, HypTag, LoadState, PageHeader, Panel, RoleChip, RoleFlow } from '@/components/kit'
 import { ROLE } from '@/lib/roles'
 import { api, ROLES, type Role } from '@/lib/api'
-import { dec, kzt, num } from '@/lib/format'
+import { dec, kzt, num, pct } from '@/lib/format'
 import { useApi } from '@/lib/use-api'
 
 type Step = {
@@ -61,6 +61,7 @@ const STEPS: Step[] = [
       { label: 'пропуск от', key: 'tr_pass_lo', fmt: (v) => dec(v) },
       { label: 'до', key: 'tr_pass_hi', fmt: (v) => dec(v) },
       { label: 'вход ≥', key: 'tr_in_kzt', fmt: kzt },
+      { label: 'вывод ≤ 2 дн. ≥', key: 'tr_fast_min', fmt: pct },
     ],
   },
   {
