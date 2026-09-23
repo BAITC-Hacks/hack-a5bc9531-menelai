@@ -5,7 +5,7 @@ Python (`pipeline/run.py`) считает всё и пишет CSV в `out/`. Bu
 Одна команда полного пересчёта:
 
 ```bash
-python3 pipeline/run.py --data task/data --out out
+cd pipeline && uv sync && uv run python run.py   # дефолты: --data ../task/data --out ../out
 ```
 
 `out/` коммитится: это и есть «мок» для фронта.

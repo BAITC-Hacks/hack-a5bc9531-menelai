@@ -1,0 +1,5 @@
+{
+ "tag": "sim_100000008477350100",
+ "model": "gpt-5.6-sol",
+ "text": "{\"gid\":\"100000008477350100\",\"verdict\":\"частично\",\"verdict_why\":\"Узел выполняет явные условия coordinator: 11 плательщиков, 39 получателей, цикл и 3 seed выше по потоку. Но условие betweenness ≥ p95 нельзя независимо проверить: указано 0,00251719, а числовой порог p95 в карточке отсутствует.\",\"jury_question\":\"Каков точный порог p95 для betweenness и почему при out_deg=39, out_deg/in_deg=3,55 и лишь 1% seed-денег это coordinator, а не обычный distributor?\",\"alt_role\":\"distributor\",\"alt_role_why\":\"Правило distributor выполнено напрямую: out_deg=39 ≥15 и 39 ≥3×11; оно уступает coordinator только при подтверждённом betweenness ≥p95.\"}"
+}

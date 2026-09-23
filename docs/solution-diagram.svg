@@ -1,0 +1,129 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="900" viewBox="0 0 1600 900" font-family="-apple-system, 'Helvetica Neue', Arial, sans-serif">
+  <defs>
+    <marker id="a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto">
+      <path d="M0,0 L10,5 L0,10 z" fill="#374151"/>
+    </marker>
+    <style>
+      .box{fill:#ffffff;stroke:#374151;stroke-width:2}
+      .data{fill:#eef2f7}
+      .core{fill:#f3f4f6}
+      .out{fill:#eef6ee}
+      .ui{fill:#f5f0fa}
+      .chk{fill:#fff8e6;stroke:#92400e;stroke-width:2;stroke-dasharray:6 4}
+      .h{font-size:22px;font-weight:700;fill:#111827}
+      .t{font-size:17px;fill:#1f2937}
+      .s{font-size:15px;fill:#4b5563}
+      .ar{stroke:#374151;stroke-width:2.5;fill:none;marker-end:url(#a)}
+      .st{font-size:15px;font-weight:700;fill:#6b7280;letter-spacing:1px}
+    </style>
+  </defs>
+  <rect width="1600" height="900" fill="#ffffff"/>
+  <text x="40" y="52" font-size="30" font-weight="700" fill="#111827">Граф денег — схема решения</text>
+  <text x="40" y="84" class="s">данные → метрики → роли → интерфейс · все правила детерминированные, LLM в расчёте нет</text>
+
+  <!-- stage labels -->
+  <text x="40" y="130" class="st">1 · ДАННЫЕ</text>
+  <text x="330" y="130" class="st">2 · МЕТРИКИ</text>
+  <text x="680" y="130" class="st">3 · РОЛИ, КЛАСТЕРЫ, ПРИОРИТЕТ</text>
+  <text x="1080" y="130" class="st">4 · ВЫГРУЗКИ И ИНТЕРФЕЙС</text>
+
+  <!-- data -->
+  <rect x="40" y="150" width="250" height="300" rx="10" class="box data"/>
+  <text x="60" y="185" class="h">3 файла parquet</text>
+  <text x="60" y="222" class="t">nodes — 2 248 узлов</text>
+  <text x="60" y="248" class="s">81 seed, колено 0–4</text>
+  <text x="60" y="284" class="t">edges — 3 119 рёбер</text>
+  <text x="60" y="310" class="s">src → dst, сумма за июль</text>
+  <text x="60" y="346" class="t">transactions — 4 840</text>
+  <text x="60" y="372" class="s">переводы с датой</text>
+  <text x="60" y="412" class="s">оборот 365,9 млн ₸</text>
+  <text x="60" y="434" class="s">переводы ≥ 5 000 ₸</text>
+
+  <!-- metrics -->
+  <rect x="330" y="150" width="310" height="300" rx="10" class="box core"/>
+  <text x="350" y="185" class="h">Метрики узла</text>
+  <text x="350" y="220" class="t">степени in / out</text>
+  <text x="350" y="248" class="t">суммы in / out, ₸</text>
+  <text x="350" y="276" class="t">pass_through = out / in</text>
+  <text x="350" y="304" class="t">seed_share (pro-rata)</text>
+  <text x="350" y="332" class="t">betweenness, PageRank</text>
+  <text x="350" y="360" class="t">циклы ≤ 5, seed выше ≤ 4</text>
+  <text x="350" y="388" class="t">время: вывод ≤ 2 дн.,</text>
+  <text x="350" y="412" class="t">синхронные входы</text>
+  <text x="350" y="436" class="s">обрыв колена 4 → no_data</text>
+
+  <!-- cascade -->
+  <rect x="680" y="150" width="360" height="200" rx="10" class="box core"/>
+  <text x="700" y="185" class="h">Каскад ролей</text>
+  <text x="700" y="218" class="s">0 no_data (444 + 19)</text>
+  <text x="700" y="243" class="t">1 coordinator → 2 consolidator</text>
+  <text x="700" y="268" class="t">→ 3 distributor → 4 transit</text>
+  <text x="700" y="293" class="t">→ 5 terminal → 6 peripheral</text>
+  <text x="700" y="323" class="s">пороги = перцентили с floor или ТЗ</text>
+  <text x="700" y="343" class="s">→ role_score + evidence ≤ 200 симв.</text>
+
+  <!-- louvain -->
+  <rect x="680" y="375" width="360" height="110" rx="10" class="box core"/>
+  <text x="700" y="410" class="h">Louvain-кластеры</text>
+  <text x="700" y="440" class="t">вес = сумма, seed = 42</text>
+  <text x="700" y="466" class="s">91 кластер · гипотеза по составу</text>
+
+  <!-- priority -->
+  <rect x="680" y="510" width="360" height="150" rx="10" class="box core"/>
+  <text x="700" y="545" class="h">priority_score</text>
+  <text x="700" y="578" class="t">структура × связь с делом</text>
+  <text x="700" y="606" class="s">mean(pct seed-денег, pct seed выше,</text>
+  <text x="700" y="626" class="s">pct суммы, pct betweenness)</text>
+  <text x="700" y="648" class="s">× вес роли × 0,7 при слабой связи</text>
+
+  <!-- outputs -->
+  <rect x="1080" y="150" width="480" height="230" rx="10" class="box out"/>
+  <text x="1100" y="185" class="h">Выгрузки out/</text>
+  <text x="1100" y="222" class="t">nodes_roles.csv — 2 248 строк</text>
+  <text x="1100" y="252" class="t">clusters.csv — 91 кластер</text>
+  <text x="1100" y="282" class="t">top_nodes.csv — топ-30 с «why»</text>
+  <text x="1100" y="312" class="t">node_metrics.csv / .json</text>
+  <text x="1100" y="342" class="s">один запуск run.py ≈ 3,5 с</text>
+  <text x="1100" y="364" class="s">побайтно воспроизводимо</text>
+
+  <!-- server -->
+  <rect x="1080" y="420" width="480" height="100" rx="10" class="box ui"/>
+  <text x="1100" y="455" class="h">Сервер Bun / Hono</text>
+  <text x="1100" y="487" class="t">читает out/ и parquet → JSON /api</text>
+  <text x="1100" y="509" class="s">graph · nodes · top · clusters · stats</text>
+
+  <!-- ui -->
+  <rect x="1080" y="560" width="480" height="100" rx="10" class="box ui"/>
+  <text x="1100" y="595" class="h">UI React</text>
+  <text x="1100" y="627" class="t">схема сети · поиск gid · карточка узла</text>
+  <text x="1100" y="649" class="s">роли, кластеры, направление потоков</text>
+
+  <!-- arrows -->
+  <line x1="290" y1="300" x2="326" y2="300" class="ar"/>
+  <line x1="640" y1="250" x2="676" y2="250" class="ar"/>
+  <line x1="640" y1="420" x2="676" y2="430" class="ar"/>
+  <line x1="860" y1="350" x2="860" y2="371" class="ar"/>
+  <line x1="860" y1="485" x2="860" y2="506" class="ar"/>
+  <path d="M1040,585 L1060,585 L1060,265 L1076,265" class="ar"/>
+  <line x1="1320" y1="380" x2="1320" y2="416" class="ar"/>
+  <line x1="1320" y1="520" x2="1320" y2="556" class="ar"/>
+
+  <!-- checks -->
+  <rect x="40" y="700" width="1520" height="160" rx="10" class="chk"/>
+  <text x="60" y="738" class="h">Проверка решения</text>
+  <text x="60" y="776" class="t">Синтетический тест</text>
+  <text x="60" y="802" class="s">62 узла, 10 заложенных паттернов,</text>
+  <text x="60" y="824" class="s">pytest: 3 passed</text>
+  <text x="440" y="776" class="t">Детерминизм</text>
+  <text x="440" y="802" class="s">два прогона → побайтно</text>
+  <text x="440" y="824" class="s">одинаковые выгрузки (cmp)</text>
+  <text x="800" y="776" class="t">Чувствительность ±20 %</text>
+  <text x="800" y="802" class="s">15 порогов; худший Jaccard топ-20 0,67;</text>
+  <text x="800" y="824" class="s">хрупко: consolidator / terminal</text>
+  <text x="1200" y="776" class="t">LLM-жюри (только оценка)</text>
+  <text x="1200" y="802" class="s">да/частично/нет: v1 54/12/0 → v3 65/0/0;</text>
+  <text x="1200" y="824" class="s">evidence 2 248 строк: 0 ошибок кодом</text>
+  <path d="M340,700 L340,462" stroke="#92400e" stroke-width="2" stroke-dasharray="6 4" fill="none"/>
+  <path d="M860,700 L860,664" stroke="#92400e" stroke-width="2" stroke-dasharray="6 4" fill="none"/>
+  <path d="M1320,700 L1320,664" stroke="#92400e" stroke-width="2" stroke-dasharray="6 4" fill="none"/>
+</svg>

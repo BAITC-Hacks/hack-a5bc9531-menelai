@@ -13,7 +13,8 @@ export default defineConfig({
   },
   server: {
     proxy: {
-      '/api': 'http://localhost:3001',
+      // API_PROXY: point at another port when a parallel checkout already holds :3001
+      '/api': process.env.API_PROXY ?? 'http://localhost:3001',
     },
   },
 })

@@ -1,10 +1,11 @@
 import { Hono } from "hono";
-import clusters from "./clusters";
+import analytics from "./analytics";
+import assistant from "./assistant";
 import graph from "./graph";
 import health from "./health";
 import nodes from "./nodes";
+import results from "./results";
 import stats from "./stats";
-import top from "./top";
 import transactions from "./transactions";
 
 export const api = new Hono()
@@ -13,7 +14,8 @@ export const api = new Hono()
   .route("/graph", graph)
   .route("/transactions", transactions)
   .route("/nodes", nodes)
-  .route("/top", top)
-  .route("/clusters", clusters);
+  .route("/analytics", analytics)
+  .route("/assistant", assistant)
+  .route("/", results);
 
 export type AppType = typeof api;

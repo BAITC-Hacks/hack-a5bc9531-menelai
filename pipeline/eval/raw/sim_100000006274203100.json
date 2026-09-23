@@ -1,0 +1,5 @@
+{
+ "tag": "sim_100000006274203100",
+ "model": "gpt-5.6-sol",
+ "text": "{\"gid\":\"100000006274203100\",\"verdict\":\"да\",\"verdict_why\":\"Роль terminal строго срабатывает: узел не seed, depth=3, вход 3 417 512 ₸, пропуск 0,0211 (<0,3), truncated=false. Более приоритетные роли не проходят: in_deg=2 исключает coordinator и consolidator, out_deg=3 исключает distributor, а низкий пропуск — transit.\",\"jury_question\":\"Почему узел следует считать значимым terminal, если 98,8% входа пришло от одного контрагента, seed_share всего 0,21%, а с основным плательщиком есть двусторонний цикл?\",\"alt_role\":\"нет\",\"alt_role_why\":\"По каскаду альтернативы нет: для consolidator и coordinator требуется in_deg≥3 при фактических 2, для distributor — out_deg≥15 при 3, для transit — pass_through≥0,8 при 0,0211.\"}"
+}
