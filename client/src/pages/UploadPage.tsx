@@ -82,7 +82,7 @@ export default function UploadPage() {
           ))}
         </div>
 
-        <div className="flex flex-wrap items-end gap-3">
+        <div className="flex flex-wrap items-center gap-3">
           <Button type="submit" className="min-h-11" disabled={!ready || running}>
             Рассчитать роли
           </Button>
