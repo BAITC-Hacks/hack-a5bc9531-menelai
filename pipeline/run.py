@@ -2,7 +2,7 @@
 """
 Пайплайн кейса «Граф денег» (HackAlem AI, AML).
 
-Реализует pipeline/RULES.md v1: метрики → «окрашенные деньги» → временные паттерны →
+Реализует pipeline/RULES.md v2: метрики → «окрашенные деньги» → временные паттерны →
 циклы → каскад ролей → кластеры Louvain → priority → выгрузки → проверки.
 
 Запуск:  uv run python run.py --data ../task/data --out ../out
@@ -25,16 +25,46 @@ ROLE_RU = {"coordinator": "координации", "consolidator": "консо�
 ROLE_WEIGHT = {"coordinator": 1.0, "consolidator": 0.9, "distributor": 0.7,
                "transit": 0.6, "terminal": 0.5, "peripheral": 0.2}
 
-# Пороги RULES.md §1 (источник порога — там же)
+# ================================================================== THRESHOLDS (RULES.md §1)
+# Степенные/суммовые пороги — перцентили распределения в данных: (перцентиль, совокупность, floor).
+#   совокупность: "in" — узлы с in_deg > 0, "out" — out_deg > 0, "both" — in > 0 и out > 0.
+#   порог = max(значение перцентиля, floor); перцентиль берётся method="lower" — реально наблюдаемое значение.
+#   floor = порог v1 — минимум на случай малых/вырожденных данных, где перцентиль падает ниже разумного.
+PCT_THRESHOLDS = dict(
+    coord_in_deg=(0.95, "in", "in_deg", 3),
+    coord_out_deg=(0.70, "out", "out_deg", 3),
+    coord_betw_thr=(0.95, "both", "betweenness", 0.0),
+    cons_in_deg=(0.95, "in", "in_deg", 3),
+    cons_in_kzt=(0.80, "in", "in_kzt", 200_000),
+    dist_out_deg=(0.95, "out", "out_deg", 15),
+    tr_in_kzt=(0.60, "in", "in_kzt", 100_000),
+    term_in_kzt=(0.80, "in", "in_kzt", 200_000),
+)
+# Фиксированные: доли/счётчики из ТЗ и структурные параметры (не зависят от распределения)
 T = dict(
-    coord_in_deg=3, coord_out_deg=3, coord_seed_up=2, coord_betw_pct=0.95,
-    cons_in_deg=3, cons_pass_max=0.3, cons_in_kzt=200_000,
-    dist_out_deg=15, dist_ratio=3,
-    tr_pass_lo=0.8, tr_pass_hi=1.2, tr_in_kzt=100_000,
-    term_pass_max=0.3, term_in_kzt=200_000,
+    coord_seed_up=3,
+    cons_pass_max=0.3,
+    dist_ratio=3,
+    tr_pass_lo=0.8, tr_pass_hi=1.2, tr_fast_min=0.5,
+    term_pass_max=0.3,
+    weak_seed_share=0.1,
     seed_up_hops=4, cycle_len=5, fast_days=2, sync_payers=3,
     louvain_seed=42,
 )
+
+
+def resolve_thresholds(f, spec=PCT_THRESHOLDS) -> dict:
+    """Абсолютные значения перцентильных порогов на данных f.
+    Возвращает плоский dict чисел: key (итог), key_pct (перцентиль), key_pct_value (значение перцентиля до floor)."""
+    pop = {"in": f.in_deg > 0, "out": f.out_deg > 0, "both": (f.in_deg > 0) & (f.out_deg > 0)}
+    out = {}
+    for k, (q, p, col, floor) in spec.items():
+        s = f.loc[pop[p], col]
+        v = float(np.quantile(s, q, method="lower")) if len(s) else float(floor)
+        out[k] = max(v, floor)
+        out[f"{k}_pct"] = q
+        out[f"{k}_pct_value"] = v
+    return out
 
 
 # ------------------------------------------------------------------ форматирование
@@ -184,12 +214,9 @@ def margin_le(v, thr):
     return float(np.clip((thr - v) / thr, 0, 1))
 
 
-def roles(f):
-    """Каскад RULES.md §1 сверху вниз, первое сработавшее правило даёт роль."""
-    both = (f.in_deg > 0) & (f.out_deg > 0)
-    betw_thr = float(f.loc[both, "betweenness"].quantile(T["coord_betw_pct"]))
-    T["coord_betw_thr"] = betw_thr
-
+def roles(f, T):
+    """Каскад RULES.md §1 сверху вниз, первое сработавшее правило даёт роль. T — разрешённые пороги."""
+    betw_thr = T["coord_betw_thr"]
     role, score, rule_hit = [], [], []
     for g, r in f.iterrows():
         pt = r.pass_through
@@ -202,7 +229,7 @@ def roles(f):
                              r.in_kzt >= T["cons_in_kzt"]],
             "distributor": [r.out_deg >= T["dist_out_deg"], r.out_deg >= T["dist_ratio"] * r.in_deg],
             "transit": [r.in_deg >= 1, r.out_deg >= 1, pd.notna(pt) and T["tr_pass_lo"] <= pt <= T["tr_pass_hi"],
-                        r.in_kzt >= T["tr_in_kzt"], not r.is_seed],
+                        r.in_kzt >= T["tr_in_kzt"], r.fast_out_share >= T["tr_fast_min"], not r.is_seed],
             "terminal": [r.depth in (1, 2, 3), (r.out_deg == 0) or (pd.notna(pt) and pt < T["term_pass_max"]),
                          r.in_kzt >= T["term_in_kzt"], not r.is_seed],
         }
@@ -223,13 +250,17 @@ def roles(f):
                              margin_ge(r.in_kzt, T["cons_in_kzt"])],
             "distributor": [margin_ge(r.out_deg, T["dist_out_deg"]),
                             1.0 if r.in_deg == 0 else margin_ge(r.out_deg, T["dist_ratio"] * r.in_deg)],
-            "transit": [float(np.clip(1 - abs(pt - 1) / 0.2, 0, 1)), margin_ge(r.in_kzt, T["tr_in_kzt"])],
+            "transit": [float(np.clip(1 - abs(pt - 1) / 0.2, 0, 1)), margin_ge(r.in_kzt, T["tr_in_kzt"]),
+                        margin_ge(r.fast_out_share, T["tr_fast_min"])],
             "terminal": [margin_le(0 if pd.isna(pt) else pt, T["term_pass_max"]), margin_ge(r.in_kzt, T["term_in_kzt"])],
         }[hit]
         role.append(hit); score.append(0.5 + 0.5 * float(np.mean(mg))); rule_hit.append(hit)
     f["role"] = role
     f["role_score"] = np.round(score, 4)
     f["rule_hit"] = rule_hit
+    # RULES.md §5: «подозрительная» роль при малой доле seed-денег — возможен легальный контрагент (магазин, работодатель)
+    f["weak_seed_link"] = f.role.isin(["consolidator", "terminal", "distributor", "coordinator"]) & (
+        f.seed_share < T["weak_seed_share"])
 
 
 # ------------------------------------------------------------------ clusters
@@ -300,7 +331,26 @@ def priority(f):
 
 # ------------------------------------------------------------------ evidence / why
 
-def evidence(r) -> str:
+def thr_deg(x) -> str:
+    """порог по целочисленной метрике: 16.0 → '16'"""
+    return f"{int(np.ceil(x))}"
+
+
+def thr_k(x) -> str:
+    """порог по сумме: 215000 → '215 тыс.'"""
+    return f"{x / 1000:.0f} тыс."
+
+
+def evidence(r, T) -> str:
+    """RULES.md §5. При weak_seed_link фрагмент «seed-денег X%» заменяется пометкой (число не дублируется)."""
+    e = _evidence(r, T)
+    if r.weak_seed_link:
+        e = e.replace(f", seed-денег {pct_str(r.seed_share)}", "") + \
+            f"; связь с seed слабая ({pct_str(r.seed_share)}), возможен легальный контрагент"
+    return e
+
+
+def _evidence(r, T) -> str:
     sd = "сам seed" if r.is_seed else f"seed-денег {pct_str(r.seed_share)}"   # у seed доля = 1 по построению
     if r.rule_hit == "nodata":
         if r.isolated:
@@ -309,19 +359,24 @@ def evidence(r) -> str:
     if r.role == "coordinator":
         link = "цикл" if r.in_cycle else ""
         link = ", ".join(x for x in [link, f"seed выше {r.n_seed_upstream}"] if x)
-        return (f"coordinator: ≥3 плат., ≥3 получ., посредн. ≥p95, связь с ≥2 seed/цикл; факт: {r.in_deg} плат., "
+        return (f"coordinator: ≥{thr_deg(T['coord_in_deg'])} плат., ≥{thr_deg(T['coord_out_deg'])} получ., посредн. ≥p95, "
+                f"связь с ≥{T['coord_seed_up']} seed/цикл; факт: {r.in_deg} плат., "
                 f"{r.out_deg} получ., betw {dec(r.betweenness, 4)}, {link}, {sd}")
     if r.role == "consolidator":
-        return (f"consolidator: ≥3 плат., пропуск <0,3, вход ≥200 тыс.; факт: {r.in_deg} плат., {kzt(r.in_kzt)}, "
+        return (f"consolidator: ≥{thr_deg(T['cons_in_deg'])} плат., пропуск <{dec(T['cons_pass_max'], 1)}, "
+                f"вход ≥{thr_k(T['cons_in_kzt'])}; факт: {r.in_deg} плат., {kzt(r.in_kzt)}, "
                 f"пропуск {dec(r.pass_through)}, {sd}")
     if r.role == "distributor":
-        return (f"distributor: ≥15 получ., получ. ≥3×плат.; факт: {r.out_deg} получ. от {r.in_deg} плат., "
-                f"отдал {kzt(r.out_kzt)}, {sd}")
+        return (f"distributor: ≥{thr_deg(T['dist_out_deg'])} получ., получ. ≥{T['dist_ratio']}×плат.; факт: {r.out_deg} получ. "
+                f"от {r.in_deg} плат., отдал {kzt(r.out_kzt)}, {sd}")
     if r.role == "transit":
-        return (f"transit: пропуск 0,8–1,2, вход ≥100 тыс.; факт: вход {kzt(r.in_kzt)}, выход {kzt(r.out_kzt)}, "
+        return (f"transit: пропуск {dec(T['tr_pass_lo'], 1)}–{dec(T['tr_pass_hi'], 1)}, вход ≥{thr_k(T['tr_in_kzt'])}, "
+                f"вывод ≤2 дн. ≥{pct_str(T['tr_fast_min'])}; "
+                f"факт: вход {kzt(r.in_kzt)}, выход {kzt(r.out_kzt)}, "
                 f"пропуск {dec(r.pass_through)}, вывод ≤2 дн. {pct_str(r.fast_out_share) if pd.notna(r.fast_out_share) else 'н/д'}")
     if r.role == "terminal":
-        return (f"terminal: колено 1–3, пропуск <0,3, вход ≥200 тыс.; факт: колено {r.depth}, вход {kzt(r.in_kzt)} "
+        return (f"terminal: колено 1–3, пропуск <{dec(T['term_pass_max'], 1)}, вход ≥{thr_k(T['term_in_kzt'])}; "
+                f"факт: колено {r.depth}, вход {kzt(r.in_kzt)} "
                 f"от {r.in_deg} плат., пропуск {dec(r.pass_through)}, {sd}")
     return (f"peripheral: признаков роли не выявлено; факт: {r.in_deg} плат., вход {kzt(r.in_kzt)}, "
             f"{r.out_deg} получ., выход {kzt(r.out_kzt)}, пропуск {dec(r.pass_through)}")
@@ -402,7 +457,7 @@ def outputs(f, edges, ctab, per_cycles, sync_days, out_dir: Path, meta):
         g = int(r.gid)
         d = {k: jnum(getattr(r, k)) for k in METRICS}
         d.update(role=r.role, role_score=jnum(r.role_score), priority_score=jnum(r.priority_score),
-                 cluster_id=int(r.cluster_id), evidence=r.evidence,
+                 cluster_id=int(r.cluster_id), evidence=r.evidence, weak_seed_link=bool(r.weak_seed_link),
                  cycles=[[str(int(v)) for v in c] for c in per_cycles.get(g, [])],
                  sync_days=sync_days.get(g, []),
                  top_in=top_links(edges, g, "in"), top_out=top_links(edges, g, "out"))
@@ -452,6 +507,20 @@ def review(nr, top):
 
 # ------------------------------------------------------------------ main
 
+def compute(edges, nodes, tx, T_base=T):
+    """features → seed_share → temporal → cycles → пороги → роли на произвольных DataFrame (без чтения parquet).
+    tx["date"] должен быть datetime. Возвращает f, разрешённые пороги Tr, sync_days, per_cycles, n_cycles, G."""
+    G = build_graph(edges, nodes)
+    f = features(G, edges, nodes)
+    seed_share(f, edges)
+    sync_days = temporal(f, tx)
+    per_cycles, n_cycles = cycles(G, f)
+    Tr = {**T_base, **resolve_thresholds(f)}
+    Tr["coord_betw_pct"] = Tr["coord_betw_thr_pct"]      # ключ v1 в _meta.thresholds — для совместимости
+    roles(f, Tr)
+    return f, Tr, sync_days, per_cycles, n_cycles, G
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--data", default="../task/data")
@@ -460,20 +529,15 @@ def main():
     t0 = time.perf_counter()
 
     edges, nodes, tx = load(Path(a.data))
-    G = build_graph(edges, nodes)
-    f = features(G, edges, nodes)
-    seed_share(f, edges)
-    sync_days = temporal(f, tx)
-    per_cycles, n_cycles = cycles(G, f)
-    roles(f)
+    f, Tr, sync_days, per_cycles, n_cycles, G = compute(edges, nodes, tx)
     comms = clusters(G, f)
     priority(f)
-    f["evidence"] = [evidence(r) for _, r in f.iterrows()]
+    f["evidence"] = [evidence(r, Tr) for _, r in f.iterrows()]
     ctab = cluster_table(G, f, comms)
 
     meta = dict(
-        rules="pipeline/RULES.md v1",
-        thresholds={k: (round(v, 8) if isinstance(v, float) else v) for k, v in T.items()},
+        rules="pipeline/RULES.md v2",
+        thresholds={k: (round(float(v), 8) if isinstance(v, float) else int(v)) for k, v in Tr.items()},
         role_weight=ROLE_WEIGHT,
         role_counts={r: int((f.role == r).sum()) for r in ROLES},
         n_nodes=len(f), n_edges=len(edges), n_tx=len(tx), n_seed=int(f.is_seed.sum()),
@@ -484,6 +548,7 @@ def main():
     nr, top = outputs(f, edges, ctab, per_cycles, sync_days, Path(a.out), meta)
     checks(nr, top, ctab, Path(a.out))
     review(nr, top)
+    print("\nПороги:", {k: v for k, v in meta["thresholds"].items() if k in PCT_THRESHOLDS})
     print(f"\nВыгрузки: {Path(a.out).resolve()}  | время {time.perf_counter() - t0:.1f} с")
 
 
