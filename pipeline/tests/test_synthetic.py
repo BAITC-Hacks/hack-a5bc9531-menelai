@@ -1,9 +1,10 @@
 """
-Синтетический тест: на искусственном графе (60 узлов) с заложенными паттернами пайплайн должен восстановить роли.
+Синтетический тест: на искусственном графе (62 узла) с заложенными паттернами пайплайн должен восстановить роли.
 Запуск: cd pipeline && uv run python -m pytest tests -q    (или uv run python tests/test_synthetic.py)
 
-Пороги идут через тот же resolve_thresholds, что и на реальных данных. На 60 узлах перцентили падают ниже floor,
-поэтому действуют floor (= пороги v1): тест проверяет каскад правил, а не калибровку перцентилей.
+Пороги идут через тот же resolve_thresholds, что и на реальных данных. На 62 узлах большинство перцентилей ниже floor
+(действуют floor = пороги v1); p80 in_kzt = 300 тыс. и p95 betweenness — из данных. Тест проверяет каскад правил,
+а не калибровку перцентилей.
 """
 import sys
 from pathlib import Path
@@ -27,13 +28,15 @@ L, L_OUT = 53, 54                                    # «медленный тр
 Z = 55                                               # колено 4, обход обрезан
 M, G = 56, list(range(57, 63))                       # «магазин» и 6 его покупателей без связи с seed
 FILL = list(range(63, 69))                           # фоновые мелкие переводы
+H = 69                                               # «сборщик» с одним доминирующим плательщиком (90 %)
+ISO = 70                                             # seed без единого перевода
 
 
 def build():
-    depth = {S1: 0, S2: 0, S3: 0, S4: 0, S5: 0, K: 1, C: 1, D: 1, TN: 1, L: 1, C_OUT: 2, E: 2, L_OUT: 2, M: 2, Z: 4}
+    depth = {S1: 0, S2: 0, S3: 0, S4: 0, S5: 0, ISO: 0, H: 1, K: 1, C: 1, D: 1, TN: 1, L: 1, C_OUT: 2, E: 2, L_OUT: 2, M: 2, Z: 4}
     depth |= {g: 2 for g in R + F + N + G + FILL} | {g: 3 for g in Y}
     nodes = pd.DataFrame({"gid": list(depth), "depth": list(depth.values()),
-                          "is_seed": [g <= 5 for g in depth]}).astype({"gid": "int64", "depth": "int64"})
+                          "is_seed": [g <= 5 or g == ISO for g in depth]}).astype({"gid": "int64", "depth": "int64"})
 
     tx = []
     add = lambda s, d, amt, day: tx.append((s, d, D0 + pd.Timedelta(days=day), float(amt)))
@@ -63,6 +66,10 @@ def build():
     # «магазин»: 6 покупателей без связи с seed по 60 тыс., денег дальше не отправляет
     for g in G:
         add(g, M, 60_000, 7)
+    # один плательщик дал 90 % входа, ещё двое — по 5 %: формально ≥ 3 плательщиков, но «несколько участников» нет
+    add(S2, H, 900_000, 8)
+    add(F[1], H, 50_000, 8)
+    add(F[2], H, 50_000, 8)
     # фон
     for a, b in zip(FILL[::2], FILL[1::2]):
         add(a, b, 10_000, 3)
@@ -74,14 +81,14 @@ def build():
 
 def result():
     edges, nodes, tx = build()
-    assert len(nodes) == 60
+    assert len(nodes) == 62
     f, Tr, *_ = run.compute(edges, nodes, tx)
     f["evidence"] = [run.evidence(r, Tr) for _, r in f.iterrows()]
     return f, Tr
 
 
 EXPECT = {K: "coordinator", C: "consolidator", D: "distributor", TN: "transit", E: "terminal",
-          Z: "peripheral", L: "peripheral", M: "consolidator"}
+          Z: "peripheral", L: "peripheral", M: "consolidator", H: "terminal", ISO: "peripheral"}
 
 
 def test_roles_recovered():
@@ -100,6 +107,26 @@ def test_pattern_details():
     assert not f.loc[C, "weak_seed_link"] and abs(f.loc[C, "seed_share"] - 0.5) < 1e-9
     assert not f.loc[[K, D, E], "weak_seed_link"].any()
     assert (f.evidence.str.len() <= 200).all()
+    # v3: доминирующий плательщик → не consolidator; остальные сборщики проходят
+    assert abs(f.loc[H, "max_payer_share"] - 0.9) < 1e-9 and f.loc[H, "in_deg"] == 3
+    assert f.loc[C, "max_payer_share"] < 0.8 and f.loc[M, "max_payer_share"] < 0.8
+    assert "макс. плат." in f.loc[C, "evidence"]
+    # v3: «нет данных» — отдельный флаг; изолированный seed без денег в графе
+    assert f.loc[Z, "no_data"] and f.loc[ISO, "no_data"] and not f.loc[L, "no_data"]
+    assert f.loc[ISO, "seed_share"] == 0 and f.loc[ISO, "seed_money_in"] == 0
+    assert "0 вход., 0 исход." in f.loc[ISO, "evidence"] and "запросить исходящие" in f.loc[Z, "evidence"]
+
+
+def test_priority_weights():
+    f, _ = result()
+    plain = f.assign(no_data=False, weak_seed_link=False)      # тот же base, только вес роли
+    run.priority(f)
+    run.priority(plain)
+    k = f.priority_score / plain.priority_score
+    # no_data: вес 0,5 вместо 0,2; слабая связь с делом: × WEAK_SEED_PRIORITY_MULT; остальные без изменений
+    assert abs(k[Z] - run.NO_DATA_WEIGHT / run.ROLE_WEIGHT["peripheral"]) < 1e-2
+    assert abs(k[M] - run.WEAK_SEED_PRIORITY_MULT) < 1e-2
+    assert abs(k[C] - 1) < 1e-9
 
 
 if __name__ == "__main__":
@@ -111,5 +138,6 @@ if __name__ == "__main__":
               f"weak={bool(r.weak_seed_link)} | {r.evidence}")
     test_roles_recovered()
     test_pattern_details()
+    test_priority_weights()
     print("Роли по всему графу:", f.role.value_counts().to_dict())
     print("SYNTHETIC OK")

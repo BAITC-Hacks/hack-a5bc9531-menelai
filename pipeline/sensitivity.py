@@ -17,6 +17,7 @@ KEYS = [
     ("coord_in_deg", True, True), ("coord_out_deg", True, True), ("coord_seed_up", True, True),
     ("coord_betw_thr", False, True),
     ("cons_in_deg", True, True), ("cons_pass_max", False, False), ("cons_in_kzt", False, True),
+    ("cons_max_payer", False, False),
     ("dist_out_deg", True, True), ("dist_ratio", False, True),
     ("tr_band", False, False), ("tr_in_kzt", False, True), ("tr_fast_min", False, True),
     ("term_pass_max", False, False), ("term_in_kzt", False, True),
@@ -90,9 +91,11 @@ def main():
     for name, change, T, kind in variants:
         role, top = evaluate(f0, T)
         cnt = role.value_counts().reindex(run.ROLES, fill_value=0)
+        dropped = base_top - top
         rows.append(dict(вариант=name, порог=change, **{r: int(cnt[r]) for r in run.ROLES},
                          jaccard_top20=len(top & base_top) / len(top | base_top),
-                         сменили_роль=int((role != base_role).sum()), kind=kind))
+                         сменили_роль=int((role != base_role).sum()), kind=kind,
+                         drop=", ".join(f"{base_role[g]}→{role[g]}" for g in sorted(dropped))))
     df = pd.DataFrame(rows)
 
     single = df[df.kind == "single"].iloc[1:]
@@ -102,7 +105,8 @@ def main():
     stable = top_ok and bad_roles.empty
     allv = df[df.kind == "all"]
 
-    out = df.drop(columns="kind").copy()
+    out = df.drop(columns=["kind", "drop"]).copy()
+    bad_top = single[single.jaccard_top20 < MIN_JACCARD]
     out["jaccard_top20"] = out.jaccard_top20.map(dec)
     head = "| " + " | ".join(out.columns) + " |\n|" + "---|" * len(out.columns) + "\n"
     body = "".join("| " + " | ".join(str(x) for x in r) + " |\n" for r in out.itertuples(index=False))
@@ -126,12 +130,11 @@ in_kzt ≥ {fmt(T0['cons_in_kzt'])} ₸, транзит ≥ {fmt(T0['tr_in_kzt']
 
 **{"Устойчиво" if stable else "Неустойчиво"} по критерию.**
 - Топ-20 (кого смотреть первым): {"устойчив" if top_ok else "неустойчив"} — худший Jaccard в одиночных вариантах
-  {dec(worst_j.jaccard_top20)} (`{worst_j.вариант}`).
+  {dec(worst_j.jaccard_top20)} (`{worst_j.вариант}`, {worst_j.порог}).
+  {"".join(f"`{r.вариант}` ({r.порог}): Jaccard {dec(r.jaccard_top20)}, выпали из топ-20: {r.drop}. " for r in bad_top.itertuples())}
 - Состав ролей: {"устойчив" if bad_roles.empty else "порог 2 % превышен в " + str(len(bad_roles)) + " вариантах — "
-  + ", ".join(f"`{r.вариант}` ({r.порог}): {r.сменили_роль}" for r in bad_roles.itertuples())}.
-  Обе границы — среди узлов, где деньги пришли и остались: число плательщиков (2 vs 3) переводит узлы
-  между terminal и consolidator, сумма входа около p80 — между terminal и peripheral. Топ-20 в этих вариантах
-  не меняется (Jaccard 1,00). Смена 3 → 2 плательщиков — шаг −33 %, не −20 % (целочисленный порог сдвигается минимум на 1).
+  + ", ".join(f"`{r.вариант}` ({r.порог}): {r.сменили_роль}, Jaccard топ-20 {dec(r.jaccard_top20)}" for r in bad_roles.itertuples())}.
+  Целочисленный порог сдвигается минимум на 1: 3 → 2 и 3 → 4 плательщиков — шаг ±33 %, не ±20 %.
 - Все пороги сразу: мягче — Jaccard {dec(allv.iloc[0].jaccard_top20)}, сменили роль {allv.iloc[0].сменили_роль};
   строже — Jaccard {dec(allv.iloc[1].jaccard_top20)}, сменили роль {allv.iloc[1].сменили_роль}.
 """
