@@ -1,0 +1,210 @@
+handle,functional_role,involvement,is_known,archetype,note
+hub_grocery_1,consolidator,legit,false,продуктовый у дома,магазин Гульнары собирает оплату покупателей и платит поставщикам молока хлеба и напитков
+hub_grocery_2,consolidator,legit,false,продуктовый у дома,магазин Бакыта в спальном районе; выручка уходит на мясо молочку и зарплату продавщицы
+hub_grocery_3,consolidator,legit,false,продуктовый у дома,круглосуточный магазин Светланы; овощи берёт на рынке у точки Рустама
+hub_grocery_4,consolidator,legit,false,продуктовый у дома,маленький магазин Нурлана возле школы; часть товара у оптовика
+hub_bazaar_stall_1,consolidator,legit,false,точка на рынке (одежда),Зульфия продаёт одежду; платит карго из Китая и аренду места рынку
+hub_bazaar_stall_2,consolidator,legit,false,точка на рынке (овощи),Рустам берёт овощи у фермеров и продаёт магазинам и кафе
+hub_bazaar_stall_3,consolidator,legit,false,точка на рынке (телефоны б/у),Тимур скупает и перепродаёт б/у телефоны; иногда покупает у сомнительного Вадима не зная о краже
+hub_cafe_1,consolidator,legit,false,кафе,семейное кафе Айдоса; повара и официанты получают зарплату два раза в месяц
+hub_cafe_2,consolidator,legit,false,донерная,донерная Серика; мясо и лаваш у поставщиков; зарплата раз в неделю
+hub_taxi_park,coordinator,legit,false,таксопарк,собирает аренду машин с водителей и раз в неделю выплачивает им выручку агрегатора; легальный двойник координатора
+hub_landlord_1,consolidator,legit,false,арендодатель (пенсионер),Бахытжан-ага сдаёт несколько квартир и комнат многим жильцам; деньги уходят детям на кредит и ремонт
+hub_landlord_2,terminal,legit,false,арендодатель (инвестор),Алмас сдаёт несколько квартир купленных в ипотеку; аренда в основном уходит в ипотеку и на ремонт
+hub_landlord_3,terminal,legit,false,арендодатель (комнаты студентам),Лариса сдаёт дом с комнатами студентам и одиночкам; тратит на коммуналку аптеку и внука
+hub_landlord_4,terminal,legit,false,арендодатель (удалённый),Серик сдаёт несколько квартир и комнат через сестру; копит и в июле покупает машину у перекупа; немного USDT
+hub_phone_shop,consolidator,legit,false,магазин телефонов,Ержан продаёт телефоны и аксессуары в ТЦ; платит дистрибьютору и аренду ТЦ
+hub_auto_parts,consolidator,legit,false,автозапчасти и СТО,Канат держит СТО; клиенты таксопарк перекуп и частники
+hub_car_dealer_used,transit,legit,false,перекуп авто,деньги покупателя за 1-2 дня уходят продавцу машины; оседает маржа; легальный двойник транзита
+hub_gym,consolidator,legit,false,фитнес-клуб,абонементы от многих клиентов; тренерам процент раз в месяц
+hub_pharmacy,consolidator,legit,false,аптека,аптека Раушан; крупные платежи фармдистрибьютору
+hub_beauty_salon,consolidator,legit,false,салон красоты,салон Алии; мастерам процент от выручки каждую неделю
+hub_construction_firm,distributor,legit,false,стройфирма,ТОО строит жилой дом; веер зарплат на 44 рабочих плюс аванс; легальный двойник дистрибьютора
+hub_furniture,consolidator,legit,false,мебельный магазин,мебель на заказ; предоплаты клиентов; оплата ЛДСП и столярам
+hub_pawnshop,distributor,legit,false,ломбард,выдаёт займы под залог многим людям; изредка покупает у Вадима технику не зная что она краденая
+hub_tutor_center,consolidator,legit,false,учебный центр,подготовка к ЕНТ и английский; оплата от родителей
+hub_wedding_hall,consolidator,legit,false,тойхана,предоплаты за тои; разовые выплаты официантам тамаде и декору
+h_owner_gulnara,terminal,legit,false,владелица магазина,выводит прибыль магазина на личную карту и содержит дочь-студентку
+h_owner_bakyt,terminal,legit,false,владелец магазина,личная карта владельца второго магазина
+h_owner_svetlana,terminal,legit,false,владелица магазина,выводит прибыль; помогает сыну
+h_owner_nurlan,peripheral,legit,false,владелец магазина,небольшой вывод прибыли; живёт скромно
+h_owner_zulfiya,terminal,legit,false,владелица точки на рынке,выручка с одежды на личную карту
+h_owner_rustam,terminal,legit,false,владелец овощной точки,личная карта; платит за квартиру и семью
+h_owner_timur,peripheral,legit,false,владелец точки б/у телефонов,личная карта
+h_owner_aidos,terminal,legit,false,владелец кафе,вывод прибыли кафе; жена тратит на дом
+h_owner_serik,terminal,legit,false,владелец донерной,личная карта
+h_owner_daulet,terminal,legit,false,владелец таксопарка,прибыль парка; сын покупает машину
+h_owner_yerzhan,terminal,legit,false,владелец магазина телефонов,личная карта
+h_owner_kanat,terminal,legit,false,владелец СТО,личная карта
+h_owner_zhandos,peripheral,legit,false,владелец фитнес-клуба,личная карта
+h_owner_raushan,terminal,legit,false,владелица аптеки,личная карта
+h_owner_aliya,terminal,legit,false,владелица салона,личная карта
+h_owner_marat,terminal,legit,false,учредитель стройфирмы,дивиденды и подотчёт
+h_owner_yerbolat,terminal,legit,false,владелец мебельного,личная карта
+h_owner_igor,terminal,legit,false,владелец ломбарда,личная карта
+h_owner_asem,peripheral,legit,false,владелица учебного центра,личная карта
+h_owner_berik,terminal,legit,false,владелец тойханы,крупный вывод прибыли после сезона тоев
+h_seller_aigerim,peripheral,legit,false,продавщица,зарплата в магазине 1; помогает маме
+h_seller_dana,peripheral,legit,false,продавщица,зарплата в магазине 1
+h_seller_zhanna,peripheral,legit,false,продавщица,зарплата в магазине 2
+h_seller_madina,peripheral,legit,false,продавщица,дневная смена магазина 3
+h_seller_erlan,peripheral,legit,false,продавец,ночная смена магазина 3
+h_seller_asel,peripheral,legit,false,продавщица,магазин 4
+h_helper_kamila,peripheral,legit,false,помощница на рынке,продаёт одежду на точке Зульфии
+h_loader_bekzat,peripheral,legit,false,грузчик,разгружает овощи у Рустама
+h_master_arman,peripheral,legit,false,мастер по ремонту телефонов,получает за ремонт от точки Тимура
+h_cook_saule,peripheral,legit,false,повар,кафе Айдоса; платит сыну
+h_cook_marat,peripheral,legit,false,повар,кафе Айдоса
+h_waiter_diana,peripheral,legit,false,официантка,кафе Айдоса
+h_waiter_alibek,peripheral,legit,false,официант,кафе Айдоса; студент
+h_cook_ruslan,peripheral,legit,false,повар донерной,зарплата раз в неделю
+h_cashier_kristina,peripheral,legit,false,кассир донерной,зарплата раз в неделю
+h_dispatcher_oksana,peripheral,legit,false,диспетчер таксопарка,зарплата от парка
+h_driver_asylbek,peripheral,legit,false,водитель такси,получает выручку от парка; платит аренду машины
+h_driver_nurken,peripheral,legit,false,водитель такси,получает выручку от парка
+h_driver_yevgeniy,peripheral,legit,false,водитель такси,получает выручку от парка
+h_driver_rauan,peripheral,legit,false,водитель такси,получает выручку; жена ведёт семейный бюджет
+h_driver_bakhyt,peripheral,legit,false,водитель такси,получает выручку от парка
+h_driver_zhomart,peripheral,legit,false,водитель такси,получает выручку от парка
+h_driver_islam,peripheral,legit,false,водитель такси,получает выручку; снимает квартиру у Бахытжан-ага
+h_driver_farkhad,peripheral,legit,false,водитель такси,получает выручку; берёт займ в ломбарде
+h_driver_saken,peripheral,legit,false,водитель такси,получает выручку от парка
+h_driver_andrey,peripheral,legit,false,водитель такси,получает выручку от парка
+h_driver_meirambek,peripheral,legit,false,водитель такси,получает выручку от парка
+h_driver_aibek,peripheral,legit,false,водитель такси,новенький; выплат мало
+h_seller_nurbol,peripheral,legit,false,продавец телефонов,зарплата плюс процент
+h_seller_alina,peripheral,legit,false,продавщица телефонов,зарплата плюс процент
+h_mechanic_askar,peripheral,legit,false,автомеханик,СТО Каната
+h_mechanic_dimash,peripheral,legit,false,автомеханик,СТО Каната
+h_trainer_arsen,peripheral,legit,false,тренер,фитнес-клуб
+h_trainer_togzhan,peripheral,legit,false,тренер,фитнес-клуб
+h_trainer_kirill,peripheral,legit,false,тренер,фитнес-клуб
+h_admin_gym_ainur,peripheral,legit,false,администратор фитнеса,фитнес-клуб
+h_pharmacist_gulmira,peripheral,legit,false,фармацевт,аптека Раушан
+h_pharmacist_timofey,peripheral,legit,false,фармацевт,аптека Раушан
+h_master_nails_zarina,peripheral,legit,false,мастер маникюра,процент от салона каждую неделю
+h_master_hair_dinara,peripheral,legit,false,парикмахер,процент от салона каждую неделю
+h_master_brows_moldir,peripheral,legit,false,бровист,процент от салона
+h_accountant_lyazzat,peripheral,legit,false,бухгалтер стройфирмы,зарплата; иногда получает подотчёт на хознужды
+h_foreman_berdibek,transit,legit,false,прораб,получает подотчёт от фирмы и в тот же день платит за мелкие материалы и разнорабочим
+h_worker_bolat,peripheral,legit,false,рабочий-каменщик,зарплата и аванс от стройфирмы; содержит жену
+h_worker_erbol,peripheral,legit,false,рабочий,стройфирма
+h_worker_nurzhan,peripheral,legit,false,рабочий,стройфирма; помогает брату-студенту
+h_worker_azamat,peripheral,legit,false,рабочий,стройфирма
+h_worker_daniyar,peripheral,legit,false,рабочий-арматурщик,стройфирма; жена
+h_worker_kairat,peripheral,legit,false,рабочий,стройфирма; отправляет маме в аул
+h_worker_yerlan,peripheral,legit,false,рабочий,стройфирма
+h_worker_sanzhar,peripheral,legit,false,рабочий,стройфирма
+h_worker_ruslan,peripheral,legit,false,сварщик,стройфирма
+h_worker_talgat,peripheral,legit,false,бригадир каменщиков,стройфирма; жена
+h_worker_murat,peripheral,legit,false,рабочий,стройфирма
+h_worker_askhat,peripheral,legit,false,рабочий,стройфирма
+h_worker_zhasulan,peripheral,legit,false,рабочий,стройфирма
+h_worker_beibit,peripheral,legit,false,рабочий,стройфирма
+h_worker_dauren,peripheral,legit,false,крановщик,стройфирма
+h_worker_galym,peripheral,legit,false,рабочий,стройфирма
+h_worker_ilyas,peripheral,legit,false,рабочий,стройфирма
+h_worker_madi,peripheral,legit,false,рабочий,стройфирма; жена
+h_worker_nurlybek,peripheral,legit,false,рабочий,стройфирма
+h_worker_olzhas,peripheral,legit,false,рабочий,стройфирма
+h_worker_rinat,peripheral,legit,false,рабочий,стройфирма
+h_worker_samat,peripheral,legit,false,рабочий,стройфирма
+h_worker_temirlan,peripheral,legit,false,рабочий,стройфирма
+h_worker_ulan,peripheral,legit,false,рабочий,стройфирма
+h_worker_zhenis,peripheral,legit,false,рабочий,стройфирма
+h_worker_adilet,peripheral,legit,false,рабочий,стройфирма
+h_worker_aslan,peripheral,legit,false,рабочий,стройфирма
+h_worker_baurzhan,peripheral,legit,false,рабочий,стройфирма
+h_worker_dias,peripheral,legit,false,рабочий,стройфирма
+h_worker_yerkebulan,peripheral,legit,false,рабочий,стройфирма
+h_worker_kuanysh,peripheral,legit,false,рабочий,стройфирма
+h_worker_maksat,peripheral,legit,false,рабочий,стройфирма
+h_worker_nurbek,peripheral,legit,false,рабочий,стройфирма
+h_worker_serikbol,peripheral,legit,false,рабочий,стройфирма
+h_worker_abylai,peripheral,legit,false,рабочий,стройфирма
+h_worker_arman,peripheral,legit,false,рабочий,стройфирма
+h_worker_bekarys,peripheral,legit,false,рабочий,стройфирма
+h_worker_dastan,peripheral,legit,false,рабочий,стройфирма
+h_worker_zhandos,peripheral,legit,false,рабочий,стройфирма
+h_worker_marlen,peripheral,legit,false,рабочий,стройфирма
+h_worker_akhmet,peripheral,legit,false,рабочий,стройфирма
+h_worker_vitaliy,peripheral,legit,false,отделочник,стройфирма
+h_worker_sergey,peripheral,legit,false,отделочник,стройфирма
+h_worker_oleg,peripheral,legit,false,электрик штатный,стройфирма
+h_brigade_pavel,transit,legit,false,бригадир субподряда электрики,получает оплату субподряда и на следующий день раздаёт своим трём электрикам
+h_electrician_vasiliy,peripheral,legit,false,электрик субподряда,получает от бригадира Павла
+h_electrician_zhanat,peripheral,legit,false,электрик субподряда,получает от бригадира Павла
+h_electrician_aidar,peripheral,legit,false,электрик субподряда,получает от бригадира Павла
+h_carpenter_nikolay,peripheral,legit,false,столяр,мебельный цех
+h_carpenter_zhanibek,peripheral,legit,false,столяр,мебельный цех
+h_delivery_sultan,peripheral,legit,false,водитель доставки мебели,сдельно
+h_appraiser_elmira,peripheral,legit,false,оценщица ломбарда,зарплата
+h_borrower_saltanat,peripheral,legit,false,заёмщица ломбарда,заложила золото; вернула займ
+h_borrower_kostya,peripheral,legit,false,заёмщик ломбарда,заложил ноутбук
+h_borrower_aizhan,peripheral,legit,false,заёмщица ломбарда,заложила серьги до зарплаты
+h_borrower_nurik,peripheral,legit,false,заёмщик ломбарда,заложил телефон
+h_borrower_bekzhan,peripheral,legit,false,заёмщик ломбарда,заложил инструмент
+h_borrower_marina,peripheral,legit,false,заёмщица ломбарда,заложила кольцо
+h_tutor_math_bauyrzhan,peripheral,legit,false,репетитор математики,учебный центр
+h_tutor_eng_aruzhan,peripheral,legit,false,репетитор английского,учебный центр
+h_tutor_ent_nazerke,peripheral,legit,false,репетитор ЕНТ,учебный центр
+h_tutor_kaz_gulnaz,peripheral,legit,false,репетитор казахского,учебный центр
+h_manager_aizada,peripheral,legit,false,менеджер тойханы,зарплата
+h_chef_zhaksylyk,peripheral,legit,false,шеф-повар тойханы,зарплата плюс за каждый той
+h_toi_waiter_dilnaz,peripheral,legit,false,официантка на тои,разовые выплаты за вечер
+h_toi_waiter_yerasyl,peripheral,legit,false,официант на тои,разовые выплаты за вечер
+h_toi_waiter_amina,peripheral,legit,false,официантка на тои,разовые выплаты за вечер
+h_toi_waiter_nursultan,peripheral,legit,false,официант на тои,разовые выплаты за вечер
+h_toi_waiter_sabina,peripheral,legit,false,официантка на тои,разовые выплаты за вечер
+h_toi_waiter_akbota,peripheral,legit,false,официантка на тои,разовые выплаты за вечер
+h_toastmaster_kenzhe,terminal,legit,false,тамада,получает гонорар за тои
+h_singer_aigul,terminal,legit,false,певица,гонорар за тои
+h_decor_lyaila,peripheral,legit,false,декоратор,оформление залов
+h_supplier_milk,consolidator,legit,false,дистрибьютор молочки,собирает оплату с нескольких магазинов и кафе
+h_supplier_bread,consolidator,legit,false,пекарня,хлеб и лаваш магазинам и донерной
+h_supplier_drinks,consolidator,legit,false,дистрибьютор напитков,собирает с магазинов кафе и тойханы
+h_supplier_meat,consolidator,legit,false,мясной цех,мясо для кафе донерной магазина и тойханы
+h_supplier_textile,terminal,legit,false,оптовик тканей и одежды,Зульфия берёт у него товар
+h_supplier_electronics,consolidator,legit,false,дистрибьютор электроники,поставляет телефоны и аксессуары
+h_supplier_autoparts,terminal,legit,false,оптовик запчастей,продаёт запчасти СТО
+h_supplier_pharma,terminal,legit,false,фармдистрибьютор,поставки аптеке
+h_supplier_cosmetics,terminal,legit,false,поставщик косметики,гель-лаки и краски для салона
+h_supplier_cement,terminal,legit,false,поставщик бетона и цемента,крупные нерегулярные оплаты стройфирмы
+h_supplier_metal,terminal,legit,false,металлобаза,арматура для стройки
+h_supplier_hardware,consolidator,legit,false,строительный магазин,метизы и инструмент; платят фирма и прораб
+h_supplier_ldsp,terminal,legit,false,поставщик ЛДСП,плиты и фурнитура мебельному
+h_farmer_ermek,peripheral,legit,false,фермер,поставляет картофель и лук Рустаму
+h_farmer_gulsara,peripheral,legit,false,фермерша,поставляет огурцы и помидоры Рустаму
+h_expeditor_yura,peripheral,legit,false,экспедитор молочки,зарплата от дистрибьютора
+h_butcher_amangeldy,peripheral,legit,false,разделщик мяса,зарплата от мясного цеха
+h_premises_kuat,consolidator,legit,false,владелец коммерческих помещений,получает аренду от магазина кафе и аптеки
+h_premises_gaukhar,terminal,legit,false,владелица помещения,сдаёт помещение донерной и магазину 4
+h_mall_tsum,consolidator,legit,false,управляющая компания ТЦ,аренда от магазина телефонов фитнеса салона и учебного центра
+h_bazaar_admin,consolidator,legit,false,администрация рынка,аренда мест от точек на рынке
+h_ll1_son_nurdaulet,peripheral,legit,false,сын арендодателя,получает помощь от отца
+h_ll1_daughter_zarema,peripheral,legit,false,дочь арендодателя,получает помощь на детей
+h_repairman_sultanbek,peripheral,legit,false,мастер по ремонту квартир,ремонт у арендодателей
+h_ll2_wife_kamshat,peripheral,legit,false,жена Алмаса,семейные траты
+h_ll3_grandson_denis,peripheral,legit,false,внук Ларисы,студент
+h_ll4_sister_roza,peripheral,legit,false,сестра Серика,присматривает за квартирой за вознаграждение
+h_car_seller_meiram,terminal,legit,false,частный продавец авто,продал машину перекупу
+h_car_seller_olga,terminal,legit,false,частная продавщица авто,продала машину перекупу
+h_car_seller_kenes,terminal,legit,false,частный продавец авто,продал машину перекупу
+h_detailer_rafael,peripheral,legit,false,детейлер,полирует машины перекупа
+h_dealer_wife_zhanar,peripheral,legit,false,жена перекупа,семейные траты
+h_fence_vadim,terminal,criminal,false,скупщик краденого,продаёт краденые телефоны и золото точке б/у телефонов и ломбарду; деньги снимает
+h_fam_bolat_wife,peripheral,legit,false,жена рабочего,продукты аптека кружок ребёнка
+h_fam_daniyar_wife,peripheral,legit,false,жена рабочего,продукты и салон
+h_fam_kairat_mother,peripheral,legit,false,мама рабочего в ауле,получает помощь от сына и передаёт дочери
+h_fam_kairat_sister,peripheral,legit,false,сестра рабочего,студентка
+h_fam_talgat_wife,peripheral,legit,false,жена бригадира,продукты мебель репетитор
+h_fam_nurzhan_brother,peripheral,legit,false,брат рабочего-студент,снимает комнату у Ларисы
+h_fam_aidos_wife,peripheral,legit,false,жена владельца кафе,салон мебель фитнес
+h_fam_rauan_wife,peripheral,legit,false,жена таксиста,продукты аптека
+h_fam_aigerim_mother,peripheral,legit,false,мама продавщицы,аптека
+h_fam_gulnara_daughter,peripheral,legit,false,дочь владелицы магазина,студентка; снимает комнату у Ларисы
+h_fam_daulet_son,peripheral,legit,false,сын владельца таксопарка,покупает машину у перекупа
+h_fam_saule_son,peripheral,legit,false,сын повара,школьник-подросток
+h_fam_madi_wife,peripheral,legit,false,жена рабочего,продукты
+h_friend_arnur,peripheral,legit,false,друг рабочих,занимает и возвращает долги
+h_friend_dmitriy,peripheral,legit,false,друг таксистов,занимает и возвращает долги

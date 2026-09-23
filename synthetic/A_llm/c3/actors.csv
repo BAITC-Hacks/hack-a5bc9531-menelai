@@ -1,0 +1,84 @@
+handle,functional_role,involvement,is_known,archetype,note
+c3_klad_arman,peripheral,criminal,true,закладчик,принимает оплату от покупателей и раз в неделю сливает выручку на первый слой дроп-карт; зарплату получает с кассы
+c3_klad_madi,peripheral,criminal,true,закладчик,сдаёт выручку на дроп-карты первого слоя; бытовые траты и долг другу
+c3_klad_erlan,peripheral,criminal,true,закладчик,сдаёт выручку на дропов; сам снимает квартиру
+c3_kurier_timur,peripheral,criminal,true,курьер-перевозчик,возит опт; крупные сливы на дропов и один раз напрямую сборщику в обход слоёв
+c3_klad_sanzhar,peripheral,criminal,true,закладчик,мелкий закладчик; сливы небольшими суммами на дропов
+c3_klad_aibek,peripheral,criminal,true,закладчик-новичок,только получает зарплату с кассы; исходящие все ниже 5000 или межбанк
+c3_klad_nurlan,peripheral,criminal,true,закладчик,получает зарплату с кассы и отправляет матери в другой банк; в выгрузке только получатель
+c3_klad_dauren,peripheral,criminal,true,закладчик,получает зарплату с кассы; исходящие только мелкие
+c3_klad_yerbol,peripheral,criminal,true,закладчик,сливы на дропов и помощь матери
+c3_klad_askar,peripheral,criminal,true,старший закладчик,сливы на дропов и иногда прямо на второй слой; платит аренду квартиры
+c3_kurier_ruslan,peripheral,criminal,true,курьер,оплату получает наличными; по счёту видны только семья и покупка машины
+c3_drop_zhanna,transit,criminal,true,дроп (безработная),карта арендована; принимает от закладчиков и пересылает на второй слой за вычетом 2-3 процентов
+c3_drop_aruzhan,transit,criminal,false,дроп (студентка),первый слой: принимает от закладчиков и за 0-1 день пересылает дальше минус комиссия; живёт на деньги мамы
+c3_drop_beka,transit,criminal,false,дроп (безработный),первый слой транзита; ставки на спорт и ремонт машины
+c3_drop_dana,transit,criminal,false,дроп (студентка),первый слой; однажды держала деньги 3 дня; снимает комнату
+c3_drop_samat,transit,criminal,false,дроп (курьер доставки),первый слой транзита; параллельно легально работает курьером доставки и получает от ИП зарплату
+c3_drop_nazerke,transit,criminal,false,дроп (студентка),первый слой; с комиссий купила телефон; снимает комнату
+c3_drop_zhanibek,transit,criminal,false,дроп (студент),первый слой транзита
+c3_drop_ilya,transit,criminal,false,дроп (безработный),второй слой; иногда отдаёт сразу сборщику
+c3_drop_moldir,transit,criminal,false,дроп (студентка),второй слой транзита; сестра переводит легальные деньги
+c3_drop_askhat,transit,criminal,false,дроп (курьер доставки),второй слой; легальная зарплата от ИП доставки маскирует транзит
+c3_drop_tomiris,transit,criminal,false,дроп (студентка),второй слой транзита
+c3_drop_kanat,transit,criminal,false,дроп (безработный),второй слой; один раз прогнал через карту другого банка; игрок в букмекерах
+c3_drop_vlad,transit,criminal,false,дроп (студент),третий слой; отдаёт сборщикам или на четвёртый слой
+c3_drop_saule,transit,criminal,false,дроп (безработная мать),третий слой; платит аренду квартиры
+c3_drop_ersultan,transit,criminal,false,дроп (студент),третий слой; через него идут крупные суммы
+c3_drop_gulnaz,transit,criminal,false,дроп (безработная),третий слой; сливает на обоих сборщиков
+c3_drop_miras,transit,criminal,false,дроп (студент),четвёртый слой; однажды затормозил на 6 дней и часть потратил; вернул штраф вербовщику
+c3_drop_dilnaz,peripheral,criminal,false,дроп-новичок,только что завербована; получила подъёмные и ещё ничего не прогоняла
+c3_sbor_bolat,consolidator,criminal,false,финальный сборщик,копит от дропов последнего слоя и курьера; крупно отдаёт боссу на свой депозит в P2P и межбанком
+c3_sbor_kamila,consolidator,criminal,false,второй сборщик (девушка босса),собирает с части третьего слоя и переводит боссу и P2P-трейдеру
+c3_boss_kairat,coordinator,criminal,false,организатор,получает со сборщиков; платит кассе и вербовщику; выводит через P2P и межбанк; покупает машину и мебель
+c3_kassa_zp,distributor,criminal,false,касса зарплат,карта для еженедельной зарплаты закладчикам веером
+c3_verbovshik_ilyas,coordinator,criminal,false,вербовщик дропов,платит дропам за аренду карт и бонусы; принимает штрафы; связывает дропов с боссом
+c3_kairat_depozit,terminal,criminal,false,депозит босса,накопительный счёт; деньги остаются
+c3_bolat_depozit,terminal,criminal,false,депозит сборщика,накопительный счёт сборщика; исходящих нет
+c3_ip_zhanar_dostavka,distributor,legit,false,ИП доставка еды,получает выручку агрегатора и платит курьерам еженедельно веером; курьеры сдают наложенный платёж
+c3_dostavshik_erbolat,peripheral,legit,false,курьер доставки,зарплата от ИП и аренда машины
+c3_dostavshik_ainur,peripheral,legit,false,курьер доставки,зарплата от ИП; аренда квартиры
+c3_dostavshik_dias,peripheral,legit,false,курьер доставки,зарплата от ИП; сдаёт наложенный платёж
+c3_dostavshik_zhenis,peripheral,legit,false,курьер доставки,зарплата от ИП; немного покупает USDT для себя
+c3_dostavshik_olzhas,peripheral,legit,false,курьер доставки,зарплата от ИП; сдаёт наложенный платёж
+c3_starosta_madina,consolidator,legit,false,староста группы,собирает с одногруппников на курс и оплачивает учебный центр
+c3_student_alina,peripheral,legit,false,студентка,снимает комнату у хозяйки и сдаёт старосте
+c3_student_kamshat,peripheral,legit,false,студентка,снимает комнату у хозяйки и сдаёт старосте
+c3_student_nurbol,peripheral,legit,false,студент,сдаёт старосте на курс
+c3_student_aigerim,peripheral,legit,false,студентка,сдаёт старосте двумя частями
+c3_student_dias_k,peripheral,legit,false,студент,сдаёт старосте на курс
+c3_hozyaika_raushan,consolidator,legit,false,хозяйка квартиры,сдаёт комнаты четырём студенткам и собирает аренду; платит коммуналку и помогает сыну
+c3_syn_raushan,peripheral,legit,false,сын хозяйки,получает помощь от матери
+c3_mama_arman,peripheral,legit,false,мать закладчика,получает помощь от сына; помогает дочери
+c3_sestra_arman,peripheral,legit,false,сестра закладчика,учёба
+c3_drug_madi,peripheral,legit,false,друг закладчика,занял и вернул
+c3_zhena_timur,peripheral,legit,false,жена курьера,бытовые траты семьи
+c3_mama_sanzhar,peripheral,legit,false,мать закладчика,бытовые траты
+c3_mama_yerbol,peripheral,legit,false,мать закладчика,бытовые траты
+c3_mama_aibek,peripheral,legit,false,мать закладчика,бытовые траты
+c3_zhena_ruslan,peripheral,legit,false,жена курьера,бытовые траты и предоплата тоя
+c3_mama_zhanna,peripheral,legit,false,мать дропа,бытовые траты
+c3_mama_aruzhan,peripheral,legit,false,мать дропа,содержит дочь-студентку и сына
+c3_brat_aruzhan,peripheral,legit,false,брат дропа,спортзал и кафе
+c3_podruga_aruzhan,peripheral,legit,false,подруга дропа,мелкие расходы
+c3_drug_beka,peripheral,legit,false,друг дропа (таксист),занял и вернул
+c3_papa_beka,peripheral,legit,false,отец дропа,даёт карманные и платит за машину
+c3_mama_dana,peripheral,legit,false,мать дропа,содержит двух дочерей
+c3_sestra_dana,peripheral,legit,false,сестра дропа,учёба
+c3_zhena_samat,peripheral,legit,false,жена дропа,бытовые траты
+c3_mama_samat,peripheral,legit,false,мать дропа,бытовые траты
+c3_apa_nazerke,peripheral,legit,false,бабушка дропа,делится пенсией с внучкой
+c3_mama_zhanibek,peripheral,legit,false,мать дропа,содержит сына
+c3_mama_ilya,peripheral,legit,false,мать дропа,бытовые траты
+c3_sestra_moldir,peripheral,legit,false,сестра дропа,одалживает и получает обратно
+c3_mama_askhat,peripheral,legit,false,мать дропа,бытовые траты
+c3_mama_tomiris,peripheral,legit,false,мать дропа,содержит дочь
+c3_drug_kanat,peripheral,legit,false,друг дропа,мелкие траты
+c3_papa_vlad,peripheral,legit,false,отец дропа,содержит сына и чинит машину
+c3_mama_saule,peripheral,legit,false,мать дропа,помогает дочери с внуком
+c3_drug_ersultan,peripheral,legit,false,друг дропа,мелкие траты
+c3_mama_gulnaz,peripheral,legit,false,мать дропа,бытовые траты
+c3_zhena_bolat,peripheral,legit,false,жена сборщика,тратит то что даёт муж: мебель и салон
+c3_mama_zhena_bolat,peripheral,legit,false,тёща сборщика,бытовые траты
+c3_mama_kamila,peripheral,legit,false,мать второго сборщика,бытовые траты
+c3_mama_kairat,peripheral,legit,false,мать организатора,получила от сына и внесла предоплату за той

@@ -1,0 +1,124 @@
+handle,functional_role,involvement,is_known,archetype,note
+c5_boss_ermek,coordinator,criminal,false,организатор ячейки,получает от кассы и от фиктивных сотрудников; докидывает агентству и премирует старшего; тратит на авто и той
+c5_boss_wife_aigerim,terminal,criminal,false,кошелёк бенефициара,жена организатора; на неё сводят зарплаты мёртвых душ; покупки мебели и золота и депозит
+c5_kassa_nurlan,consolidator,criminal,false,касса сети,собирает выручку с дроп-карт и сдачу закладчиков; платит оптовику и бухгалтеру-дропу
+c5_buh_saule,transit,criminal,false,бухгалтер-дроп,получает от кассы и за 0-1 день перегоняет на счёт агентства оставляя около 1.5 процента
+c5_agency_kadry,distributor,criminal,false,кадровое агентство-прокладка,ТОО на подставное лицо; веером платит зарплату курьерам и фиктивным и реальным сотрудникам 2-4 раза в месяц
+c5_nominee_bolat,peripheral,criminal,false,подставной директор,номинальный директор агентства; получает фиксированные 70 тыс в месяц дважды
+c5_senior_marat,distributor,criminal,false,старший курьер,получает крупные суммы от агентства и раздаёт своей шестёрке курьеров; получает премию от организатора
+c5_wife_marat,peripheral,criminal,false,жена старшего курьера,получает часть денег мужа; быт и мебель
+c5_zak_ruslan,peripheral,criminal,true,закладчик,получает зарплату от агентства; аренда и мать; вернул излишек агентству
+c5_zak_aidos,peripheral,criminal,true,закладчик,получает от агентства; передаёт часть другу-курьеру Ерлану; девушка и телефон
+c5_zak_miras,peripheral,criminal,true,закладчик,получает от агентства и сдаёт наличную выручку клиентов в кассу
+c5_zak_dias,peripheral,criminal,true,закладчик,получает от агентства; помогает матери
+c5_zak_arman,peripheral,criminal,true,закладчик,получает от агентства; дважды вернул переплату агентству; покупает USDT
+c5_zak_temirlan,peripheral,criminal,true,закладчик,получает от агентства; помогает брату
+c5_kur_alibek,peripheral,criminal,true,курьер,получает от агентства; аренда и переводы жене
+c5_kur_sanzhar,peripheral,criminal,true,курьер,получает от агентства и сдаёт выручку в кассу
+c5_kur_bekzat,peripheral,criminal,true,курьер,получает от агентства; исходящие только мелкие и межбанк матери
+c5_zak_madina,peripheral,criminal,true,закладчица,получает от агентства; аренда и мать; одалживает подруге-закладчице
+c5_zak_kamila,peripheral,criminal,true,закладчица,получает от агентства; мелкие траты и подруга
+c5_kur_nursultan,peripheral,criminal,true,курьер,получает от агентства; мать и аренда; вернул излишек
+c5_zak_islam,peripheral,criminal,true,закладчик,получает от старшего курьера (не из веера); сдаёт выручку в кассу
+c5_zak_ayan,peripheral,criminal,true,закладчик,получает от старшего курьера; исходящих ≥5000 внутри банка нет
+c5_kur_daniyar,peripheral,criminal,true,курьер,получает от старшего курьера; только получатель
+c5_zak_yerzhan,peripheral,criminal,true,закладчик,получает от старшего курьера; вернул ему излишек; аренда
+c5_kur_yerlan,peripheral,criminal,false,курьер,получает от агентства и от друга Айдоса; аренда и мать
+c5_kur_adil,peripheral,criminal,false,курьер,получает от агентства; покупки и USDT
+c5_kur_bauyrzhan,peripheral,criminal,false,курьер,получает от агентства; семья и запчасти
+c5_kur_zhandos,peripheral,criminal,false,курьер,получает от агентства; одалживает другу-курьеру Ринату
+c5_kur_rinat,peripheral,criminal,false,курьер,получает от агентства; возвращает долг Жандосу
+c5_kur_maksat,peripheral,criminal,false,курьер,получает от агентства; мать и новый телефон
+c5_kur_olzhas,peripheral,criminal,false,курьер,получает от агентства и возвраты долгов от Санжара
+c5_kur_askar,peripheral,criminal,false,курьер,получает от агентства; сдаёт выручку в кассу; задаток за авто
+c5_kur_beibit,peripheral,criminal,false,курьер,получает от агентства; мать
+c5_kur_nurbol,peripheral,criminal,false,курьер,получает от агентства; аренда и сестра
+c5_kur_timur,peripheral,criminal,false,курьер,получает от агентства; спортзал и USDT
+c5_kur_azamat,peripheral,criminal,false,курьер,получает от агентства; мать
+c5_kur_erasyl,peripheral,criminal,false,курьер,получает от агентства; ломбард и друг-курьер
+c5_kur_dinmukhamed,peripheral,criminal,false,курьер,получает от агентства; мать
+c5_kur_sultan,peripheral,criminal,false,курьер,получает от агентства крупнее других; аренда и жена
+c5_kur_alisher,peripheral,criminal,false,курьер,получает от агентства; мать
+c5_kur_ilyas,peripheral,criminal,false,курьер,получает от агентства; отдаёт долг другу
+c5_zak_aruzhan,peripheral,criminal,false,закладчица,получает от агентства; аренда и мать
+c5_zak_dilnaz,peripheral,criminal,false,закладчица,получает от агентства; сдаёт выручку в кассу
+c5_zak_tomiris,peripheral,criminal,false,закладчица,получает от агентства; передаёт подруге-закладчице Зарине
+c5_zak_zarina,peripheral,criminal,false,закладчица,получает от агентства и от Томирис; мать
+c5_kur_vadim,peripheral,criminal,false,курьер,получает от агентства; вернул излишек; девушка и USDT
+c5_kur_artem,peripheral,criminal,false,курьер,получает от агентства; мелкие покупки
+c5_kur_denis,peripheral,criminal,false,курьер,получает от агентства; передаёт другу-курьеру Кириллу
+c5_kur_kirill,peripheral,criminal,false,курьер,получает от агентства и от Дениса; аренда
+c5_kur_samat,peripheral,criminal,false,курьер,получает от агентства; жена и запчасти
+c5_kur_novice_aibek,peripheral,criminal,false,курьер-новичок,испытательный срок; мелкие выплаты от агентства
+c5_kur_novice_zhasulan,peripheral,criminal,false,курьер-новичок,разовая выплата от агентства; отправляет матери в другой банк
+c5_kur_novice_ernur,peripheral,criminal,false,курьер-новичок,испытательный срок; две выплаты от агентства
+c5_kur_novice_bota,peripheral,criminal,false,курьер-новичок,разовая выплата от агентства
+c5_kur_novice_dima,peripheral,criminal,false,курьер-новичок,две выплаты от агентства
+c5_kur_novice_amir,peripheral,criminal,false,курьер-новичок,разовая выплата в конце месяца
+c5_kur_nurlybek,peripheral,criminal,false,курьер,получает от старшего курьера Марата; мать
+c5_kur_akhmet,peripheral,criminal,false,курьер,получает от старшего курьера и от Ислама
+c5_kur_quit_farkhat,peripheral,criminal,false,бывший курьер,получал от агентства только в июне и ушёл
+c5_kur_join_ansar,peripheral,criminal,false,новый курьер,первая выплата от агентства в августе
+c5_fict_gulnar_pens,transit,criminal,false,мёртвая душа (пенсионерка),фиктивная зарплата от агентства за 1 день уходит жене организатора
+c5_fict_zhanar,transit,criminal,false,мёртвая душа,фиктивная зарплата пересылается жене организатора
+c5_fict_asel,transit,criminal,false,мёртвая душа,фиктивная зарплата пересылается организатору
+c5_fict_bakhyt,transit,criminal,false,мёртвая душа,фиктивная зарплата уходит P2P-трейдеру в USDT
+c5_fict_kuanysh,transit,criminal,false,мёртвая душа,фиктивная зарплата пересылается организатору
+c5_fict_oksana,transit,criminal,false,мёртвая душа,фиктивная зарплата пересылается жене организатора
+c5_fict_rauan,transit,criminal,false,мёртвая душа,крупная фиктивная зарплата пересылается организатору
+c5_fict_meruert,transit,criminal,false,мёртвая душа,фиктивная зарплата пересылается жене организатора
+c5_fict_student_abylai,transit,criminal,false,студент-дроп,продал карту; фиктивная зарплата уходит жене организатора
+c5_fict_student_dana,transit,criminal,false,студентка-дроп,фиктивная зарплата возвращается в кассу (цикл)
+c5_fict_serik,transit,criminal,false,мёртвая душа,фиктивная зарплата уходит P2P-трейдеру в USDT
+c5_fict_lyazzat,transit,criminal,false,мёртвая душа,фиктивная зарплата пересылается жене организатора
+c5_fict_gaukhar,transit,criminal,false,мёртвая душа,фиктивная зарплата пересылается организатору
+c5_fict_yerbol,transit,criminal,false,мёртвая душа,фиктивная зарплата пересылается организатору и его жене
+c5_legal_office_mgr_aliya,peripheral,legit,false,офис-менеджер,реальный сотрудник агентства (прикрытие); сын и ипотека
+c5_legal_cleaner_raisa,peripheral,legit,false,уборщица,реальный сотрудник агентства; аптека и дочь
+c5_legal_driver_sergey,peripheral,legit,false,водитель,реальный сотрудник агентства; жена и запчасти
+c5_legal_hr_dana,peripheral,legit,false,HR-менеджер,реальный сотрудник агентства; переводит мужу на его ИП
+c5_legal_accountant_elmira,peripheral,legit,false,бухгалтер,реальный сотрудник агентства по белой части; мать и мебель
+c5_legal_recruiter_kanat,peripheral,legit,false,рекрутер,реальный сотрудник агентства; оклад и бонус за найм
+c5_legal_loader_ruslanbek,peripheral,legit,false,грузчик,реальный работник по договору; семья в другом банке
+c5_legal_loader_zhaksylyk,peripheral,legit,false,грузчик,реальный работник по договору; аренда
+c5_legal_security_valery,peripheral,legit,false,охранник,реальный сотрудник агентства; сын и аптека
+c5_husband_dana_ip,distributor,legit,false,ИП клининг,легальный двойник: получает от клиентов и платит зарплату 7 уборщицам дважды в месяц
+c5_clean_gulmira,peripheral,legit,false,уборщица клининга,зарплата от ИП
+c5_clean_nadezhda,peripheral,legit,false,уборщица клининга,зарплата от ИП
+c5_clean_saltanat,peripheral,legit,false,уборщица клининга,зарплата от ИП
+c5_clean_zhibek,peripheral,legit,false,уборщица клининга,зарплата от ИП
+c5_clean_ainur,peripheral,legit,false,уборщица клининга,зарплата от ИП
+c5_clean_lyudmila,peripheral,legit,false,уборщица клининга,зарплата от ИП
+c5_clean_roza,peripheral,legit,false,уборщица клининга,зарплата от ИП
+c5_mom_ruslan,peripheral,legit,false,мать,получает помощь от сына; аптека и продукты; дочери
+c5_sis_ruslan,peripheral,legit,false,сестра,студентка; репетитор и салон
+c5_gf_aidos,peripheral,legit,false,девушка курьера,получает подарки деньгами
+c5_mom_dias,peripheral,legit,false,мать,получает помощь от сына
+c5_bro_temirlan,peripheral,legit,false,брат,получает от брата; телефон
+c5_wife_alibek,peripheral,legit,false,жена,хозяйство и репетитор ребёнку
+c5_mom_madina,peripheral,legit,false,мать,получает от дочери; продукты
+c5_friend_kamila,peripheral,legit,false,подруга,мелкий займ
+c5_mom_nursultan,peripheral,legit,false,мать,получает от сына
+c5_gf_yerzhan,peripheral,legit,false,девушка курьера,салон
+c5_mom_yerlan,peripheral,legit,false,мать,получает от сына
+c5_wife_bauyrzhan,peripheral,legit,false,жена,хозяйство и учебный центр
+c5_mom_maksat,peripheral,legit,false,мать,аптека
+c5_gf_olzhas,peripheral,legit,false,девушка курьера,покупки на рынке
+c5_mom_beibit,peripheral,legit,false,мать,продукты
+c5_sis_nurbol,peripheral,legit,false,сестра,кафе
+c5_mom_azamat,peripheral,legit,false,мать,аптека
+c5_mom_dinmukhamed,peripheral,legit,false,мать,продукты
+c5_wife_sultan,peripheral,legit,false,жена,мебель и продукты
+c5_mom_alisher,peripheral,legit,false,мать,продукты
+c5_friend_ilyas,peripheral,legit,false,друг,вернули долг; рынок
+c5_mom_aruzhan,peripheral,legit,false,мать,продукты
+c5_mom_zarina,peripheral,legit,false,мать,аптека
+c5_gf_vadim,peripheral,legit,false,девушка курьера,салон и телефон
+c5_wife_samat,peripheral,legit,false,жена,продукты и рынок
+c5_mom_nurlybek,peripheral,legit,false,мать,продукты
+c5_son_aliya,peripheral,legit,false,сын-студент,кафе и спортзал
+c5_daughter_raisa,peripheral,legit,false,дочь,продукты
+c5_wife_sergey,peripheral,legit,false,жена,продукты и репетитор
+c5_mom_elmira,peripheral,legit,false,мать,аптека
+c5_uncle_kanat,peripheral,legit,false,дядя,запчасти
+c5_son_valery,peripheral,legit,false,сын,спортзал

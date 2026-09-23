@@ -1,0 +1,102 @@
+handle,functional_role,involvement,is_known,archetype,note
+c6_seed_dana,peripheral,criminal,true,студентка-дроп,даёт карту в пользование: принимает оплаты от покупателей и раз в неделю сбрасывает Ерлану; в остальном аренда в складчину и деньги от отца
+c6_seed_erbol,peripheral,criminal,true,студент-дроп,продал доступ к карте; входящие от покупателей уходят Ерлану; стипендиальная мелочь
+c6_seed_timur,peripheral,criminal,true,грузчик,работает в бригаде Марата; по пятницам переводит знакомому Руслану выручку за клады
+c6_seed_nurlan,peripheral,criminal,true,курьер доставки,подрабатывает закладчиком; дважды сдал деньги через Руслана; делит бензин с напарником Бекой
+c6_seed_bakyt,peripheral,legit,true,таксист,в списке по ошибке — возил курьеров как пассажиров; аренда машины в таксопарке и семья
+c6_seed_gulnara,peripheral,legit,true,продавщица продуктового,обычная жизнь: мама бабушка сестра взнос на той двоюродного брата
+c6_seed_daulet,peripheral,criminal,true,грузчик,рабочий у бригадира Марата; эпизодически делал закладки за наличные; безналичные переводы только семейные
+c6_seed_zhanna,peripheral,legit,true,медсестра,в июле только мелочь и переводы на свою карту другого банка — в выгрузке без рёбер
+c6_seed_arman,peripheral,criminal,true,таксист,возил закладчиков; в июле только получает долг от Бакыта; свои крупные переводы в июне и августе
+c6_seed_kamila,peripheral,criminal,true,продавщица на рынке,дроп: всё полученное сбрасывает на карту другого банка — в выгрузке без рёбер
+c6_seed_madina,peripheral,legit,true,студентка,соседка Даны по квартире; аренда кафе на день рождения курсы
+c6_seed_askar,peripheral,criminal,true,грузчик,в бригаде Марата; исходящие только мелкие и межбанк — в выгрузке только получатель
+c6_seed_aliya,peripheral,legit,true,кассир,сестра Гульнары; аренда мама взнос на той
+c6_seed_sanzhar,peripheral,criminal,true,таксист,возил курьеров и однажды сдал выручку Бекзату напрямую; остальное — аренда машины и мама
+c6_tr_ruslan,transit,criminal,false,знакомый-транзитёр,принимает от Тимура и Нурлана и за 0–1 день переправляет Бекзату; оставляет себе 5–10%
+c6_cr_bekzat,consolidator,criminal,false,сборщик выручки,собирает с транзитёра курьеров и таксиста; сдаёт куратору и меняет в USDT у P2P
+c6_cr_beka,peripheral,criminal,false,курьер-закладчик,напарник Нурлана; изредка сдаёт Бекзату
+c6_tr_erlan,transit,criminal,false,транзитёр дропов,принимает с карт студентов и в тот же день покупает USDT у P2P-трейдера
+c6_cr_kurator,coordinator,criminal,false,куратор,получает от сборщика и транзитёра; платит зарплаты Руслану Ерлану и курьеру; выводит бенефициару и в USDT
+c6_cr_boss_wallet,terminal,criminal,false,кошелёк бенефициара,деньги оседают: мебель предоплата за машину помощь сестре
+c6_cr_boss_sister,peripheral,legit,false,сестра бенефициара,получает помощь на ребёнка и не знает откуда деньги
+c6_ruslan_mama,peripheral,legit,false,мать транзитёра,получает деньги от сына
+c6_erlan_girl_diana,peripheral,legit,false,девушка транзитёра,подарки от парня
+c6_room_tomiris,transit,legit,false,соседка-съёмщица,собирает доли аренды с Даны и Мадины и платит хозяйке — легальный пропускной счёт
+c6_dana_friend_saya,peripheral,legit,false,подруга Даны,получила подарки на день рождения
+c6_bakyt_wife_ainur,peripheral,legit,false,жена таксиста,хозяйство дети
+c6_bakyt_mama,peripheral,legit,false,мать таксиста,получает помощь от сына и невестки
+c6_bakyt_friend_nurzhan,peripheral,legit,false,друг таксиста,занял 50000 на ремонт машины и вернул частями
+c6_ainur_sister_gulmira,peripheral,legit,false,сестра жены таксиста,получила помощь
+c6_sanzhar_mama,peripheral,legit,false,мать таксиста,получает помощь от сына
+c6_timur_mama,peripheral,legit,false,мать грузчика,получает помощь от сына
+c6_timur_sister_malika,peripheral,legit,false,сестра грузчика,получила деньги от мамы
+c6_nurlan_girl_aida,peripheral,legit,false,девушка курьера,подарки и совместные траты
+c6_gul_colleague_zarina,peripheral,legit,false,коллега Гульнары,заняла 40000 и вернула
+c6_erbol_bro_ansar,peripheral,legit,false,младший брат студента,карманные деньги
+c6_fam_ajee,terminal,legit,false,бабушка-общак,дети и внуки каждый месяц скидываются ей; деньги лежат — тратит только мелочь в аптеке и магазине
+c6_fam_aigul,peripheral,legit,false,мать Гульнары и Алии,дочь бабушки; взнос на той сестре; помогает тёте
+c6_fam_kanat,peripheral,legit,false,муж Айгуль,даёт жене на хозяйство; взнос на той; корпоратив в кафе
+c6_fam_erzhan,peripheral,legit,false,отец Даны,сын бабушки; содержит дочь-студентку; займы с братом туда-обратно
+c6_fam_saltanat,peripheral,legit,false,жена Ержана,хозяйство взнос на той
+c6_fam_nurbol,peripheral,legit,false,отец Даулета,сын бабушки; займ брату; возврат долга Кайрату
+c6_fam_gaukhar,peripheral,legit,false,жена Нурбола,хозяйство курсы дочери
+c6_fam_zhanar,consolidator,legit,false,организатор тоя,собирает взносы с 18 родственников на свадьбу сына и платит тойхане тамаде сватам — легальный сборщик
+c6_fam_bolat,peripheral,legit,false,муж Жанар,переводит накопления с депозита на свадьбу сына
+c6_fam_miras,peripheral,legit,false,жених,сын Жанар; сам вкладывается в той; мальчишник в кафе
+c6_fam_asel,peripheral,legit,false,сестра Даулета,взнос на той бабушке
+c6_fam_nursultan,peripheral,legit,false,брат Даны,работает; скидывается на подарок маме; взнос на той
+c6_fam_kairat,peripheral,legit,false,племянник бабушки,получил возврат долга от Нурбола; взнос на той
+c6_fam_klara,peripheral,legit,false,сестра бабушки,взнос на той и бабушке
+c6_fam_dias,peripheral,legit,false,двоюродный брат Даулета,взнос на той
+c6_fam_togzhan,peripheral,legit,false,двоюродная сестра Алии,взнос на той
+c6_fam_alibek,peripheral,legit,false,племянник Ержана,получил за помощь с ремонтом; взнос на той
+c6_fam_raushan,peripheral,legit,false,тётя из Шымкента,клиент другого банка; переводит межбанком
+c6_fam_kuda_zhomart,peripheral,legit,false,отец невесты (құда),получил қалың мал от Жанар; платит за свою часть банкета и приданое
+c6_fam_aruzhan,peripheral,legit,false,невеста,получила от отца и жениха на подготовку
+c6_toi_tamada_bauyrzhan,peripheral,legit,false,тамада,получил предоплату и расчёт за той; платит музыканту
+c6_toi_musician_ertay,peripheral,legit,false,музыкант,получил от тамады
+c6_toi_photo_akbota,peripheral,legit,false,фотограф,получила оплату за съёмку тоя
+c6_cafe_dastarkhan,consolidator,legit,false,семейное кафе,принимает оплату от многих гостей и заказов; платит поставщикам персоналу аренду и владельцу — легальный сборщик
+c6_cafe_owner_serik,peripheral,legit,false,владелец кафе,снимает выручку еженедельно; докладывает в кафе; купил б/у машину для доставки
+c6_cafe_owner_wife_dinara,peripheral,legit,false,жена владельца кафе,хозяйство курсы детей мама
+c6_dinara_mama,peripheral,legit,false,тёща владельца кафе,получает помощь от дочери
+c6_cafe_cook_roza,peripheral,legit,false,повар кафе,зарплата дважды в месяц; аренда
+c6_cafe_waiter_aibek,peripheral,legit,false,официант кафе,зарплата дважды в месяц
+c6_cafe_waitress_moldir,peripheral,legit,false,официантка кафе,зарплата дважды в месяц
+c6_cafe_dish_zina,peripheral,legit,false,посудомойка кафе,зарплата дважды в месяц; помогает дочери
+c6_zina_daughter_lena,peripheral,legit,false,дочь посудомойки,получает помощь от мамы
+c6_supp_meat_kairbek,peripheral,legit,false,поставщик мяса,еженедельная оплата от кафе; платит фермеру и помощнику
+c6_supp_meat_helper_ermukhan,peripheral,legit,false,помощник мясника,зарплата от поставщика
+c6_supp_veg_farida,peripheral,legit,false,поставщица овощей,еженедельная оплата от кафе
+c6_brig_marat,distributor,legit,false,бригадир,получает оплату за подряд и раздаёт веером недельную зарплату 23 рабочим — легальный распределитель
+c6_brig_client_ip,peripheral,legit,false,ИП-заказчик,платит бригадиру за подряд по этапам
+c6_brig_wife_zhibek,peripheral,legit,false,жена бригадира,хозяйство курсы детей мама
+c6_zhibek_mama_rysty,peripheral,legit,false,тёща бригадира,получает помощь
+c6_wrk_ermek,peripheral,legit,false,рабочий бригады,зарплата раз в неделю; отдаёт жене
+c6_wrk_ermek_wife_aigerim,peripheral,legit,false,жена рабочего,аренда хозяйство помогает сестре
+c6_aigerim_sister_laura,peripheral,legit,false,сестра жены рабочего,получает помощь
+c6_wrk_zhandos,peripheral,legit,false,рабочий бригады,зарплата; аренда; займ коллеге
+c6_wrk_nurken,peripheral,legit,false,рабочий бригады,зарплата раз в две недели; отправляет семье в Туркестан
+c6_wrk_beibit,peripheral,legit,false,рабочий бригады,зарплата раз в неделю
+c6_wrk_samat,peripheral,legit,false,рабочий бригады,зарплата; жене; выкупил золото из ломбарда
+c6_wrk_samat_wife_nazym,peripheral,legit,false,жена рабочего,хозяйство
+c6_wrk_rustam,peripheral,legit,false,рабочий бригады,зарплата по пятницам; аренда
+c6_wrk_oleg,peripheral,legit,false,сварщик бригады,зарплата раз в неделю; жене
+c6_wrk_oleg_wife_irina,peripheral,legit,false,жена сварщика,хозяйство
+c6_wrk_sergey,peripheral,legit,false,рабочий бригады,зарплата; аренда; алименты
+c6_wrk_akmal,transit,legit,false,рабочий-мигрант,собирает доли аренды с соседей по комнате и платит хозяину — легальный пропускной счёт; отправляет семье
+c6_wrk_akmal_brother_jasur,peripheral,legit,false,брат рабочего,получил немного на жизнь
+c6_wrk_farrukh,peripheral,legit,false,рабочий-мигрант,зарплата; доля аренды Акмалю; отправляет семье
+c6_wrk_dilshod,peripheral,legit,false,рабочий-мигрант,зарплата; доля аренды Акмалю; отправляет семье
+c6_wrk_gani,peripheral,legit,false,рабочий бригады,зарплата; обеды в кафе; жене
+c6_wrk_gani_wife_saniya,peripheral,legit,false,жена рабочего,хозяйство
+c6_wrk_meiram,peripheral,legit,false,рабочий бригады,зарплата раз в две недели; купил старую машину
+c6_wrk_azamat,peripheral,legit,false,рабочий бригады,уволился в середине июля; аренда
+c6_wrk_yerkin,peripheral,legit,false,рабочий бригады,пришёл в середине июля
+c6_wrk_kuanysh,peripheral,legit,false,рабочий бригады,зарплата; жене
+c6_wrk_kuanysh_wife_ainura,peripheral,legit,false,жена рабочего,хозяйство
+c6_wrk_zhenis,peripheral,legit,false,рабочий бригады,зарплата; гасит ломбард
+c6_wrk_talgat,peripheral,legit,false,помощник прораба,зарплата раз в две недели; вернул долг бригадиру
+c6_wrk_islam,peripheral,legit,false,рабочий бригады,зарплата; курсы
+c6_wrk_abylai,peripheral,legit,false,рабочий бригады,зарплата; друг Даулета
