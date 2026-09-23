@@ -61,87 +61,52 @@
 }
 
 :root {
-    --background: oklch(1 0 0);
-    --foreground: oklch(0.145 0 0);
-    --card: oklch(1 0 0);
-    --card-foreground: oklch(0.145 0 0);
-    --popover: oklch(1 0 0);
-    --popover-foreground: oklch(0.145 0 0);
-    --primary: oklch(0.205 0 0);
-    --primary-foreground: oklch(0.985 0 0);
-    --secondary: oklch(0.97 0 0);
-    --secondary-foreground: oklch(0.205 0 0);
-    --muted: oklch(0.97 0 0);
-    --muted-foreground: oklch(0.556 0 0);
-    --accent: oklch(0.97 0 0);
-    --accent-foreground: oklch(0.205 0 0);
-    --destructive: oklch(0.577 0.245 27.325);
-    --border: oklch(0.922 0 0);
-    --input: oklch(0.922 0 0);
-    --ring: oklch(0.708 0 0);
-    --chart-1: oklch(0.87 0 0);
-    --chart-2: oklch(0.556 0 0);
-    --chart-3: oklch(0.439 0 0);
-    --chart-4: oklch(0.371 0 0);
-    --chart-5: oklch(0.269 0 0);
-    --radius: 0.625rem;
-    --sidebar: oklch(0.985 0 0);
-    --sidebar-foreground: oklch(0.145 0 0);
-    --sidebar-primary: oklch(0.205 0 0);
-    --sidebar-primary-foreground: oklch(0.985 0 0);
-    --sidebar-accent: oklch(0.97 0 0);
-    --sidebar-accent-foreground: oklch(0.205 0 0);
-    --sidebar-border: oklch(0.922 0 0);
-    --sidebar-ring: oklch(0.708 0 0);
-}
-
-.dark {
-    color-scheme: dark;
-    /* "Граф денег": ночной сине-графитовый фон, золото — деньги и фокус, цвета ролей — из макета v0 (тёмные варианты) */
-    --background: #0b0e13;
-    --foreground: #e8ebf0;
-    --card: #11161e;
-    --card-foreground: #e8ebf0;
-    --popover: #161c26;
-    --popover-foreground: #e8ebf0;
-    --primary: #ffcf70;
-    --primary-foreground: #14100a;
-    --secondary: #161c26;
-    --secondary-foreground: #e8ebf0;
-    --muted: #161c26;
-    --muted-foreground: #8a93a3;
-    --accent: #1b2230;
-    --accent-foreground: #e8ebf0;
-    --destructive: #e66767;
-    --border: #222a36;
-    --input: #2d3746;
-    --ring: #ffcf70;
+    color-scheme: light;
+    --background: #f6f6f4;
+    --foreground: #18181b;
+    --card: #ffffff;
+    --card-foreground: #18181b;
+    --popover: #ffffff;
+    --popover-foreground: #18181b;
+    --primary: #1d4f5c;
+    --primary-foreground: #ffffff;
+    --secondary: #f1f1ee;
+    --secondary-foreground: #45454d;
+    --muted: #f1f1ee;
+    --muted-foreground: #6b6b73;
+    --accent: #eef4f5;
+    --accent-foreground: #1d4f5c;
+    --destructive: #c43d3d;
+    --border: #e4e4e0;
+    --input: #d6d6d0;
+    --ring: #1d4f5c;
     --chart-1: #3987e5;
-    --chart-2: #d95926;
-    --chart-3: #199e70;
-    --chart-4: #c98500;
-    --chart-5: #d55181;
-    --sidebar: #11161e;
-    --sidebar-foreground: #e8ebf0;
-    --sidebar-primary: #ffcf70;
-    --sidebar-primary-foreground: #14100a;
-    --sidebar-accent: #161c26;
-    --sidebar-accent-foreground: #e8ebf0;
-    --sidebar-border: #222a36;
-    --sidebar-ring: #ffcf70;
-
-    --gold: #ffcf70;
-    --gold-deep: #e0a63a;
-    --ink-2: #aab2bf;
-    --panel-2: #161c26;
-    --line-2: #2d3746;
-    --seed: #e66767;
+    --chart-2: #e0692f;
+    --chart-3: #1fb07e;
+    --chart-4: #d49a1a;
+    --chart-5: #e05a8c;
+    --radius: 0.625rem;
+    --sidebar: #ffffff;
+    --sidebar-foreground: #18181b;
+    --sidebar-primary: #1d4f5c;
+    --sidebar-primary-foreground: #ffffff;
+    --sidebar-accent: #eef4f5;
+    --sidebar-accent-foreground: #1d4f5c;
+    --sidebar-border: #e4e4e0;
+    --sidebar-ring: #1d4f5c;
+    /* Compatibility tokens for existing analytical screens. */
+    --gold: #1d4f5c;
+    --gold-deep: #287084;
+    --ink-2: #45454d;
+    --panel-2: #f6f6f4;
+    --line-2: #d6d6d0;
+    --seed: #c43d3d;
     --role-consolidator: #3987e5;
     --role-transit: #e0692f;
     --role-distributor: #1fb07e;
     --role-terminal: #d49a1a;
     --role-coordinator: #e05a8c;
-    --role-peripheral: #5f6776;
+    --role-peripheral: #a3a3ab;
 }
 
 @layer base {
@@ -155,6 +120,22 @@
     }
   h1, h2, h3 {
     text-wrap: balance;
+    }
+  a, button, input, summary, select {
+    -webkit-tap-highlight-color: transparent;
+    }
+  button:not(:disabled), summary, a {
+    touch-action: manipulation;
+    }
+  button:not(:disabled), summary {
+    cursor: pointer;
+    }
+  :where(a, button, summary, select, input):focus-visible {
+    outline: 2px solid var(--gold);
+    outline-offset: 3px;
+    }
+  :where(input, textarea)::placeholder {
+    opacity: 1;
     }
   [id] {
     scroll-margin-top: 80px;
@@ -170,15 +151,34 @@
     }
 }
 @utility eyebrow {
-  font-family: var(--font-mono);
+  font-family: var(--font-sans);
   font-size: 11px;
   line-height: 1;
   font-weight: 500;
-  letter-spacing: 0.14em;
+  letter-spacing: 0.06em;
   text-transform: uppercase;
   color: var(--muted-foreground);
 }
 
 @utility tnum {
   font-variant-numeric: tabular-nums;
+}
+
+.skip-link {
+  position: fixed;
+  top: 8px;
+  left: 8px;
+  z-index: 100;
+  transform: translateY(-160%);
+  border-radius: 8px;
+  padding: 10px 16px;
+  background: var(--gold);
+  color: var(--primary-foreground);
+}
+.skip-link:focus {
+  transform: translateY(0);
+}
+
+@media (max-width: 639px) {
+  input, textarea, select { font-size: 16px; }
 }

@@ -3,12 +3,12 @@ import type { Role } from '@/lib/api'
 /** Role vocabulary: Russian label and hypothesis phrase. Thresholds are never written here — they come from /api/meta. */
 export const ROLE: Record<Role, { label: string; sign: string; color: string }> = {
   coordinator: {
-    label: 'Координатор',
+    label: 'Организатор',
     sign: 'признаки координации',
     color: 'var(--role-coordinator)',
   },
   consolidator: {
-    label: 'Консолидатор',
+    label: 'Сборщик средств',
     sign: 'признаки консолидации',
     color: 'var(--role-consolidator)',
   },
@@ -18,7 +18,7 @@ export const ROLE: Record<Role, { label: string; sign: string; color: string }> 
     color: 'var(--role-distributor)',
   },
   transit: {
-    label: 'Транзит',
+    label: 'Транзитный счёт',
     sign: 'признаки транзита',
     color: 'var(--role-transit)',
   },
@@ -28,7 +28,7 @@ export const ROLE: Record<Role, { label: string; sign: string; color: string }> 
     color: 'var(--role-terminal)',
   },
   peripheral: {
-    label: 'Периферия',
+    label: 'Без выраженной роли',
     sign: 'признаков роли не выявлено',
     color: 'var(--role-peripheral)',
   },

@@ -1,4 +1,4 @@
-import { Bar, HypTag, LoadState, PageHeader, Panel, RoleChip, RoleFlow } from '@/components/kit'
+import { Bar, HypTag, LoadState, PageHeader, Panel, RoleChip } from '@/components/kit'
 import { ROLE } from '@/lib/roles'
 import { api, ROLES, type Role } from '@/lib/api'
 import { dec, kzt, num, pct } from '@/lib/format'
@@ -16,7 +16,7 @@ const STEPS: Step[] = [
   {
     n: 0,
     role: 'peripheral',
-    rule: 'нет данных: узел обрублен обходом на 4-м колене, или seed без единого ребра в графе',
+    rule: 'нет данных: узел без исходящих на последнем колене обхода, или seed без единого ребра в графе',
     source: 'ТЗ §6 — обрыв обхода — артефакт выгрузки, не «сток»',
   },
   {
@@ -34,12 +34,13 @@ const STEPS: Step[] = [
   {
     n: 2,
     role: 'consolidator',
-    rule: 'от нескольких плательщиков, дальше уходит меньше трети, вход не мелкий',
+    rule: 'средства приходят от нескольких плательщиков, дальше уходит малая доля; вход не мелкий, один плательщик не доминирует',
     source: 'ТЗ: аккумулирует средства от нескольких участников; пороги — p95 in_deg и отсечка мелких «складчин»',
     chips: [
       { label: 'плательщиков ≥', key: 'cons_in_deg', fmt: num },
       { label: 'пропуск <', key: 'cons_pass_max', fmt: (v) => dec(v) },
       { label: 'вход ≥', key: 'cons_in_kzt', fmt: kzt },
+      { label: 'крупнейший плательщик <', key: 'cons_max_payer', fmt: pct },
     ],
   },
   {
@@ -67,7 +68,7 @@ const STEPS: Step[] = [
   {
     n: 5,
     role: 'terminal',
-    rule: 'колено 1–3 (там исходящие точно выгружались), дальше уходит меньше трети или выхода нет вовсе, вход не мелкий, и это не seed',
+    rule: 'колено 1–3, узел не помечен границей обхода, дальше уходит малая доля или выхода нет вовсе, вход не мелкий, и это не seed',
     source: 'ТЗ: деньги приходят и остаются; порог ~p80 отсекает раздувание роли',
     chips: [
       { label: 'вход ≥', key: 'term_in_kzt', fmt: kzt },
@@ -82,85 +83,98 @@ const STEPS: Step[] = [
   },
 ]
 
+async function loadMethod() {
+  const [meta, stats] = await Promise.all([api.meta(), api.stats()])
+  return { meta, stats }
+}
+
 export default function RulesPage() {
-  const { data: meta, error, reload } = useApi(api.meta)
-  if (!meta) return <LoadState error={error} reload={reload} />
+  const { data, error, reload } = useApi(loadMethod)
+  if (!data) return <LoadState error={error} reload={reload} />
+  const meta = data.meta as typeof data.meta & { no_data_weight?: number; weak_seed_priority_mult?: number }
 
   return (
     <>
       <PageHeader
-        eyebrow="правила v1 · pipeline/RULES.md"
-        title="Как назначается роль"
-        lede="Каскад проверяется сверху вниз — первое сработавшее правило даёт роль. Каждый порог — либо ориентир из ТЗ, либо перцентиль распределения в данных. Никаких чёрных ящиков и зашитых списков gid."
+        eyebrow="методика · правила анализа"
+        title="Как система приходит к выводам"
+        lede="Только структура переводов, суммы и даты из выгрузки. Каждая роль опирается на явное правило; пороги берутся из распределения данных или задаются в методике."
       />
 
-      <Panel eyebrow="каскад ролей" title="Семь шагов, один проход сверху вниз">
-        <ol className="grid gap-6">
-          {STEPS.map((s) => (
-            <li key={s.n} className="grid grid-cols-[2.5rem_1fr] gap-4 border-b pb-6 last:border-b-0 last:pb-0 md:grid-cols-[2.5rem_minmax(0,1fr)_320px]">
-              <span className="font-mono text-xl text-muted-foreground tnum">{s.n}</span>
-              <div className="grid gap-2">
-                <div className="flex flex-wrap items-center gap-2">
-                  <RoleChip role={s.role} />
-                  {s.n !== 0 && <span className="font-mono text-xs text-muted-foreground tnum">{num(meta.role_counts[s.role])} узлов с этой ролью</span>}
+      <section className="grid min-w-0 gap-3" aria-labelledby="role-cascade">
+        <div className="grid gap-1">
+          <h2 id="role-cascade" className="text-xl font-semibold">Каскад ролей</h2>
+          <p className="text-sm text-ink-2">Правила проверяются сверху вниз. Первое сработавшее правило определяет роль.</p>
+        </div>
+        <ol className="min-w-0 divide-y overflow-hidden rounded-2xl border bg-card">
+          {STEPS.map((s) => {
+            const count = s.n === 0 ? null : meta.role_counts[s.role]
+            const countLabel = s.n === 6 ? 'включая правило 0' : 'клиентов'
+            return (
+              <li key={s.n} className="grid min-w-0 grid-cols-[1.5rem_minmax(0,1fr)] gap-3 p-4 sm:gap-4 sm:p-5 lg:grid-cols-[2rem_190px_minmax(0,1fr)_5rem]">
+                <span className="font-mono text-sm text-muted-foreground tnum">{s.n}</span>
+                <div className="grid content-start justify-items-start gap-2">
+                  {s.n === 0 ? <span className="text-sm font-semibold">Недостаточно данных</span> : <RoleChip role={s.role} />}
+                  <span className="text-xs text-muted-foreground lg:hidden">{count == null ? 'Отдельный итог не передаётся' : `${num(count)} ${countLabel}`}</span>
                 </div>
-                <p className="text-[13px] text-ink-2">{s.rule}</p>
-                {s.chips && (
-                  <div className="flex flex-wrap gap-1.5">
+                <div className="col-start-2 grid min-w-0 gap-2 lg:col-start-auto">
+                  <p className="text-sm leading-relaxed text-ink-2">{s.rule}</p>
+                  {s.chips && <div className="flex flex-wrap gap-1.5">
                     {s.chips.map((c) => {
                       const v = meta.thresholds[c.key]
-                      return (
-                        <span key={c.label} className="rounded-md border bg-panel-2 px-1.5 py-0.5 font-mono text-[11px] tnum">
-                          {c.label} {v == null ? '…' : c.fmt(v)}
-                        </span>
-                      )
+                      return <span key={c.label} className="rounded-md border bg-panel-2 px-2 py-1 text-xs text-ink-2">{c.label} <span className="font-mono font-medium text-foreground tnum">{v == null ? '—' : c.fmt(v)}</span></span>
                     })}
-                  </div>
-                )}
-                <p className="text-[11px] text-muted-foreground">{s.source}</p>
-              </div>
-              <RoleFlow role={s.role} className="col-span-2 self-center md:col-span-1" />
-            </li>
-          ))}
+                  </div>}
+                  <p className="text-xs leading-relaxed text-muted-foreground">{s.source}</p>
+                </div>
+                <span className="hidden text-right font-mono text-sm tnum lg:block">{count == null ? '—' : num(count)}<span className="mt-1 block font-sans text-xs text-muted-foreground">{count == null ? 'в составе периферии' : countLabel}</span></span>
+              </li>
+            )
+          })}
         </ol>
-      </Panel>
+      </section>
 
-      <Panel eyebrow="приоритет · RULES.md §3" title="Кого смотреть первым">
-        <div className="grid gap-5 lg:grid-cols-2">
-          <div className="grid gap-2 rounded-lg border bg-panel-2/60 p-4 font-mono text-[13px] text-ink-2">
-            <div>base = mean( pct(seed_money_in), pct(n_seed_upstream), pct(in_kzt), pct(betweenness) )</div>
-            <div>priority = base × role_weight</div>
-            <p className="mt-1 text-[11px] text-muted-foreground">
-              pct — перцентильный ранг среди всех узлов графа. Для seed вместо pct(in_kzt) берётся pct(out_kzt) — вход у seed занижен.
-            </p>
+      <div className="grid min-w-0 items-start gap-4 lg:grid-cols-2">
+        <Panel title="Оценка по правилу" eyebrow="сила признаков">
+          <div className="grid gap-3 text-sm leading-relaxed text-ink-2">
+            <p>Для найденной роли оценка учитывает запас относительно порогов: от 0,5 у границы до 1 при выраженных признаках.</p>
+            <p>Для периферии оценка зависит от того, насколько близко сработало другое правило. При недостатке данных значение 1 означает уверенность в ограничении данных, а не в отсутствии риска.</p>
+            <p className="rounded-lg bg-primary/5 p-3 text-primary">Оценка 0,8 не означает вероятность причастности 80 %. Это характеристика правила.</p>
           </div>
-          <div className="grid gap-2">
-            {ROLES.map((r) => (
-              <div key={r} className="grid grid-cols-[7.5rem_minmax(0,1fr)_3rem] items-center gap-3">
-                <RoleChip role={r} />
-                <Bar value={meta.role_weight[r]} max={1} background={ROLE[r].color} />
-                <span className="text-right font-mono text-[13px] tnum">{dec(meta.role_weight[r])}</span>
-              </div>
-            ))}
+        </Panel>
+        <Panel title="Приоритет проверки" eyebrow="порядок в очереди">
+          <div className="grid gap-4 text-sm leading-relaxed text-ink-2">
+            <p>Основа — среднее перцентильных рангов по средствам исходных клиентов на входе, числу исходных клиентов выше по цепочке, входящей сумме и посредничеству. Для seed вместо входа учитывается выход.</p>
+            <p>Основа умножается на вес роли:</p>
+            <dl className="grid gap-3">
+              {ROLES.map((r) => (
+                <div key={r} className="grid grid-cols-[minmax(0,1fr)_4rem_2.5rem] items-center gap-3 sm:grid-cols-[minmax(0,1fr)_6rem_2.5rem]">
+                  <dt className="text-sm">{ROLE[r].label}</dt>
+                  <dd><Bar value={meta.role_weight[r]} max={1} background={ROLE[r].color} /></dd>
+                  <dd className="text-right font-mono text-sm text-foreground tnum">{dec(meta.role_weight[r])}</dd>
+                </div>
+              ))}
+            </dl>
+            <p className="border-t pt-3 text-xs leading-relaxed">При недостатке данных вес — {dec(meta.no_data_weight)}. При слабой связи со средствами seed применяется множитель {dec(meta.weak_seed_priority_mult)}. Эти поправки уже учтены в очереди.</p>
           </div>
-        </div>
-      </Panel>
+        </Panel>
+      </div>
 
-      <Panel eyebrow="кластеры · RULES.md §4" title="Louvain на неориентированной проекции">
-        <div className="grid gap-2 text-[13px] text-ink-2">
-          <p>
-            Вес ребра — сумма переводов в обе стороны, <code className="font-mono">seed={meta.thresholds.louvain_seed}</code>. Метод не видит
-            направление денег: кто в кластере собирает, а кто раздаёт — вопрос отдельной интерпретации по составу кластера, не самого Louvain.
-          </p>
-          <p>Разбиение чувствительно к запуску: при весе по сумме переводов оно самое стабильное из проверенных вариантов.</p>
-        </div>
-      </Panel>
-
-      <Panel eyebrow="формулировки · RULES.md §6">
-        <p className="flex items-center gap-2 text-xs text-muted-foreground">
-          <HypTag /> Все роли и кластеры на этом экране и во всём инструменте — гипотезы для проверки аналитиком, не утверждения о причастности.
-        </p>
-      </Panel>
+      <div className="grid min-w-0 items-start gap-4 lg:grid-cols-2">
+        <Panel title="Группы связанных клиентов" eyebrow="кластеризация Louvain">
+          <div className="grid gap-3 text-sm leading-relaxed text-ink-2">
+            <p>Клиенты объединяются по плотности переводов. Вес связи — сумма переводов в обе стороны; для воспроизводимости используется фиксированное начальное значение {meta.thresholds.louvain_seed}.</p>
+            <p>Метод не учитывает направление переводов. Кто в группе собирает, а кто распределяет средства, определяется отдельными правилами и исследованием потоков.</p>
+          </div>
+        </Panel>
+        <Panel title="Границы интерпретации" eyebrow="что означает результат">
+          <div className="grid gap-3 text-sm leading-relaxed text-ink-2">
+            <p>На последнем колене ({data.stats.maxDepth}) отсутствие исходящих отмечается как граница обхода. У исходных клиентов входящие неполны. Отсутствие перевода не подтверждает остаток на счёте.</p>
+            <p>Анализ ограничен переводами в загруженной выписке.{data.stats.minTxKzt != null && <> Минимальный перевод в ней — {kzt(data.stats.minTxKzt)}.</>} Сумма и число переводов рассматриваются как разные сигналы.</p>
+            <p className="flex flex-wrap items-start gap-2"><HypTag /> Роли, кластеры и приоритет помогают выбрать следующую проверку и не утверждают причастность клиента.</p>
+          </div>
+        </Panel>
+      </div>
     </>
   )
 }

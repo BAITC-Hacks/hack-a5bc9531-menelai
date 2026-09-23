@@ -1,3 +1,5 @@
+import { useEffect } from 'react'
+import { useLocation } from 'react-router'
 import { ArrowRightIcon, RotateCcwIcon } from 'lucide-react'
 import { Bar, GidLink, HypTag, LoadState, PageHeader, Panel, RoleChip, StatStrip } from '@/components/kit'
 import { api, type Cycle } from '@/lib/api'
@@ -7,6 +9,12 @@ import { cn } from '@/lib/utils'
 
 export default function RoutesPage() {
   const { data, error, reload } = useApi(api.routes)
+  const { hash } = useLocation()
+  useEffect(() => {
+    if (data && (hash === '#chains' || hash === '#cycles')) {
+      document.getElementById(hash.slice(1))?.scrollIntoView({ block: 'start' })
+    }
+  }, [data, hash])
   if (!data) return <LoadState error={error} reload={reload} />
 
   // most common intermediary among the shown chains (plain count, not a role signal)
@@ -22,8 +30,8 @@ export default function RoutesPage() {
   return (
     <>
       <PageHeader
-        eyebrow="анализ · маршруты"
-        title="Маршруты и циклы"
+        eyebrow="проверки · структура переводов"
+        title="Цепочки и круговые потоки"
         lede={
           <>
             Повторяющаяся цепочка A → B → C: B переводит C в течение 0–{data.windowDays} дн. после поступления от A, совпадений ≥ 2, по каждому
@@ -41,7 +49,7 @@ export default function RoutesPage() {
         ]}
       />
 
-      <Panel eyebrow="повторяемость маршрута" title="Устойчивые цепочки">
+      <section id="chains" className="min-w-0 scroll-mt-28"><Panel eyebrow="повторяемость маршрута" title="Устойчивые цепочки">
         <div className="overflow-x-auto rounded-lg border">
           <table className="w-full text-[13px]">
             <thead>
@@ -99,9 +107,9 @@ export default function RoutesPage() {
             </span>
           </p>
         )}
-      </Panel>
+      </Panel></section>
 
-      <div className="grid gap-6 lg:grid-cols-3">
+      <div id="cycles" className="grid min-w-0 scroll-mt-28 gap-4 lg:grid-cols-3">
         <Panel eyebrow="длина цикла" title="Циклы по длине">
           <div className="grid gap-3">
             {lens.map((len) => (
@@ -150,7 +158,7 @@ function CyclePanel({ eyebrow, title, cycles }: { eyebrow: string; title: string
         </ol>
       )}
       <p className="mt-3 flex items-center gap-2 text-xs text-muted-foreground">
-        <HypTag /> Повторяемый цикл — признак устойчивой схемы.
+        <HypTag /> Цикл — основание для проверки. Минимум сумм по звеньям не доказывает движение одних и тех же средств.
       </p>
     </Panel>
   )

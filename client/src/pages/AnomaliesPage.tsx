@@ -16,12 +16,12 @@ export default function AnomaliesPage() {
   return (
     <>
       <PageHeader
-        eyebrow="анализ · аномалии"
-        title="Аномалии"
-        lede="Узлы, чей вход выбивается из своего колена. Это сигналы для проверки, не выводы."
+        eyebrow="проверки · профиль клиента"
+        title="Нетипичные поступления"
+        lede="Клиенты с наибольшим отклонением поступлений от профиля своего колена. Сравнение использует z-оценку логарифма входящей суммы, без изменения присвоенных ролей."
       />
 
-      <Panel eyebrow="z-оценка входа внутри колена" title="Вход не по колену">
+      <Panel eyebrow="z-оценка входа внутри колена" title="Поступления относительно своего колена">
         <div className="overflow-x-auto rounded-lg border">
           <table className="w-full text-[13px]">
             <thead>
@@ -52,7 +52,7 @@ export default function AnomaliesPage() {
                   <td className="py-2 pr-3 text-right font-mono tnum text-gold">{dec(p.z)}</td>
                   <td className="py-2 pr-3">{p.role && <RoleChip role={p.role} />}</td>
                   <td className="py-2 pr-3 text-ink-2">
-                    {num(p.inDeg)} плат., {num(p.outDeg)} получ., пропуск {p.passThrough == null ? '—' : dec(p.passThrough)}
+                    {num(p.inDeg)} плат., {num(p.outDeg)} получ., пропуск {p.depth === 0 ? 'недостоверно для seed' : p.depth === 4 ? 'неизвестно' : p.passThrough == null ? '—' : dec(p.passThrough)}
                   </td>
                 </tr>
               ))}

@@ -1,180 +1,113 @@
-import type { ReactNode } from 'react'
-import { ArrowRight, ChevronDown, ChevronRight } from 'lucide-react'
-import { Eyebrow, HypTag, LoadState, PageHeader, Panel } from '@/components/kit'
-import { api } from '@/lib/api'
-import { num } from '@/lib/format'
+import { Link } from 'react-router'
+import { ArrowRightIcon, FileDownIcon } from 'lucide-react'
+import { Button } from '@/components/ui/button'
+import { HypTag, LoadState, PageHeader, Panel } from '@/components/kit'
+import { api, CSV_FILES } from '@/lib/api'
+import { kzt, num, plural } from '@/lib/format'
 import { useApi } from '@/lib/use-api'
 
-type Stage = { eyebrow: string; title: string; items: ReactNode[] }
+const STAGES = [
+  { title: 'Загрузка выписки', text: 'Клиенты, пары плательщик → получатель и отдельные переводы. Суммы по парам сверяются с транзакциями.' },
+  { title: 'Профиль клиента', text: 'Поступления и переводы, контрагенты, пропуск, скорость выхода средств и позиция посредника.' },
+  { title: 'Связь с исходными клиентами', text: 'Направленные пути с ограничением числа шагов и модель пропорционального смешивания средств.' },
+  { title: 'Роль и приоритет', text: 'Каскад явных правил определяет роль. Рассчитанный приоритет задаёт очередь проверки.' },
+  { title: 'Группы и паттерны', text: 'Louvain, направленные циклы, повторяющиеся маршруты и синхронные поступления.' },
+  { title: 'Очередь и отчёты', text: 'Основания по каждому клиенту, связи, досье и три обязательные выгрузки CSV.' },
+]
 
-function Arrow() {
-  return (
-    <div aria-hidden className="flex shrink-0 items-center justify-center text-gold">
-      <ChevronRight className="hidden size-5 lg:block" />
-      <ChevronDown className="size-5 lg:hidden" />
-    </div>
-  )
-}
-
-function StageCard({ s }: { s: Stage }) {
-  return (
-    <div className="grid min-w-0 flex-1 content-start gap-2 rounded-lg border bg-panel-2/60 p-3.5">
-      <Eyebrow>{s.eyebrow}</Eyebrow>
-      <div className="font-mono text-[13px] font-medium">{s.title}</div>
-      <ul className="grid gap-1 text-[12.5px] text-ink-2">
-        {s.items.map((it, i) => (
-          <li key={i} className="flex gap-1.5">
-            <span className="text-muted-foreground">·</span>
-            {it}
-          </li>
-        ))}
-      </ul>
-    </div>
-  )
+const EXPORTS = {
+  'nodes_roles.csv': { label: 'Роли всех клиентов', text: 'ID, роль, оценка правила, кластер, приоритет и численные основания.' },
+  'clusters.csv': { label: 'Группы клиентов', text: 'Размер, исходные клиенты, внутренний оборот, ключевые ID и гипотеза.' },
+  'top_nodes.csv': { label: 'Очередь проверки', text: 'Ранг, ID, роль, приоритет и объяснение места в очереди.' },
 }
 
 export default function ArchitecturePage() {
   const { data: stats, error, reload } = useApi(api.stats)
   if (!stats) return <LoadState error={error} reload={reload} />
 
-  const stages: Stage[] = [
-    {
-      eyebrow: 'данные',
-      title: 'task/data/*.parquet',
-      items: [
-        `edges.parquet — ${num(stats.edges)} пар плательщик→получатель`,
-        `nodes.parquet — ${num(stats.nodes)} клиентов, колено обхода, seed`,
-        `transactions.parquet — ${num(stats.transactions)} переводов с датами`,
-        'сверка: edges = Σ transactions (load() в run.py)',
-      ],
-    },
-    {
-      eyebrow: 'пайплайн · Python + uv',
-      title: 'pipeline/run.py',
-      items: [
-        'метрики графа (degree, betweenness, pagerank)',
-        '«окрашенные» seed-деньги (пропорциональное смешивание)',
-        'временные паттерны (быстрый вывод, синхронные входы)',
-        'циклы ≤ 5 шагов',
-        'роли — каскад правил сверху вниз',
-        'кластеры — Louvain на неориентированной проекции',
-        'приоритет · evidence/why',
-        'выгрузки в out/',
-      ],
-    },
-    {
-      eyebrow: 'выгрузки',
-      title: 'out/',
-      items: ['nodes_roles.csv', 'clusters.csv', 'top_nodes.csv', 'node_metrics.json'],
-    },
-    {
-      eyebrow: 'сервер · Bun + Hono',
-      title: 'server/',
-      items: [
-        'читает parquet и out/ один раз при старте',
-        'раскладка графа — d3-force',
-        'аналитика: маршруты, время, аномалии, устойчивость, полнота',
-        'инструменты ассистента (детерминированные)',
-        '/api/*',
-      ],
-    },
-    {
-      eyebrow: 'клиент · React 19 + Vite',
-      title: 'client/',
-      items: [
-        'Обзор, Схема сети (canvas), Карточка узла',
-        'Приоритеты, Кластеры',
-        'Анализ: маршруты и циклы, время, аномалии, устойчивость, полнота',
-        'Ассистент',
-        'Метод: правила ролей, схема решения',
-      ],
-    },
-  ]
-
   return (
     <>
       <PageHeader
-        eyebrow="метод · схема решения"
-        title="От parquet до экрана"
-        lede="Один прогон пайплайна на выгрузке организаторов превращается в четыре CSV/JSON-файла; сервер их читает, а клиент — только показывает. Роли, кластеры и приоритет не пересчитываются ни на сервере, ни в браузере."
+        eyebrow="методика · устройство решения"
+        title="Как проходит расчёт"
+        lede="От исходных переводов до объяснимой очереди проверки. Роли, кластеры и приоритет рассчитываются пайплайном; интерфейс показывает результаты активной выгрузки."
+        aside={<Button variant="outline" className="min-h-11" nativeButton={false} render={<Link to="/method/rules" />}>Правила ролей <ArrowRightIcon aria-hidden /></Button>}
       />
 
-      <Panel eyebrow="решение целиком" title="Данные → пайплайн → выгрузки → сервер → интерфейс" bodyClassName="p-4">
-        <div className="grid gap-3">
-          <div className="flex flex-col items-stretch gap-3 lg:flex-row">
-            {stages.map((s, i) => (
-              <div key={s.title} className="flex flex-col items-stretch gap-3 lg:flex-row lg:flex-1">
-                <StageCard s={s} />
-                {i < stages.length - 1 && <Arrow />}
-              </div>
-            ))}
-          </div>
+      <ol className="grid min-w-0 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+        {STAGES.map((stage, i) => (
+          <li key={stage.title} className="grid min-w-0 content-start gap-3 rounded-2xl border bg-card p-5">
+            <span className="font-mono text-xs font-medium text-primary tnum">{String(i + 1).padStart(2, '0')}</span>
+            <h2 className="text-base font-semibold">{stage.title}</h2>
+            <p className="text-sm leading-relaxed text-ink-2">{stage.text}</p>
+          </li>
+        ))}
+      </ol>
 
-          <div className="flex flex-col items-start gap-3 rounded-lg border border-dashed border-gold/40 bg-panel-2/30 p-3.5 sm:flex-row sm:items-center">
-            <Eyebrow className="text-gold">LLM — только здесь</Eyebrow>
-            <p className="flex-1 text-[12.5px] text-ink-2">
-              Ассистент (<code className="font-mono">/assistant</code>, OpenAI Responses API) выбирает вызовы инструментов сервера и формулирует ответ
-              из их результата. Роли, пороги, приоритет и любые числа он не считает и в выгрузки не пишет.
-            </p>
-            <div className="flex items-center gap-1.5 self-start font-mono text-[11px] text-muted-foreground sm:self-center">
-              <ArrowRight className="size-3.5 shrink-0 text-gold" />
-              только к инструментам сервера
-            </div>
-          </div>
+      <Panel title="Что получается на выходе" eyebrow="воспроизводимый результат">
+        <p className="mb-4 text-sm text-ink-2">{num(stats.nodes)} клиентов, {num(stats.edges)} связей, {num(stats.transactions)} переводов. CSV доступны отдельно для дальнейшей работы аналитика.</p>
+        <div className="grid min-w-0 gap-3 md:grid-cols-3">
+          {CSV_FILES.map(file => (
+            <a key={file} href={api.exportUrl(file)} download className="group grid min-w-0 gap-2 rounded-xl border bg-panel-2/40 p-4 transition-colors hover:border-primary/40 focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none">
+              <span className="flex items-center justify-between gap-3 text-sm font-semibold">{EXPORTS[file].label}<FileDownIcon className="size-4 shrink-0 text-primary" aria-hidden /></span>
+              <span className="text-xs leading-relaxed text-ink-2">{EXPORTS[file].text}</span>
+              <span className="mt-1 font-mono text-xs text-muted-foreground">{file}</span>
+            </a>
+          ))}
         </div>
       </Panel>
 
-      <div className="grid gap-6 lg:grid-cols-3">
-        <Panel eyebrow="стек" title="Что реально используется">
-          <div className="grid gap-4 text-[12.5px]">
-            <div>
-              <div className="mb-1 font-mono text-[11px] text-muted-foreground uppercase">pipeline (Python ≥3.12, uv)</div>
-              <p className="text-ink-2">pandas, pyarrow, networkx, numpy, scipy</p>
-            </div>
-            <div>
-              <div className="mb-1 font-mono text-[11px] text-muted-foreground uppercase">server (Bun)</div>
-              <p className="text-ink-2">hono, hyparquet (чтение parquet), d3-force (раскладка графа)</p>
-            </div>
-            <div>
-              <div className="mb-1 font-mono text-[11px] text-muted-foreground uppercase">client (bun workspace)</div>
-              <p className="text-ink-2">
-                React 19, React Router 8, Vite, TypeScript, Tailwind CSS v4, shadcn/ui (Base UI), lucide-react, canvas 2D для схемы сети
-              </p>
-            </div>
+      <div className="grid min-w-0 items-start gap-4 lg:grid-cols-2">
+        <Panel title="Локальный пересчёт демонабора" eyebrow="одна команда">
+          <div className="grid gap-3 text-sm leading-relaxed text-ink-2">
+            <p>Расчёт использует исходные parquet. LLM, внешние данные и платные сервисы для него не нужны.</p>
+            <pre className="overflow-x-auto rounded-lg border bg-panel-2 p-3 font-mono text-xs break-words whitespace-pre-wrap text-foreground">cd pipeline &amp;&amp; uv run python run.py --data ../task/data --out ../out</pre>
+            <p>Одинаковые входные данные дают одинаковые результаты: начальное значение Louvain фиксировано, посредничество считается без выборки. Пайплайн сохраняет обязательные CSV и подробные метрики в JSON и CSV.</p>
+            <p className="text-xs text-muted-foreground">Время полного расчёта печатается после каждого запуска. Требование кейса — не более 5 минут на предоставленных данных.</p>
           </div>
         </Panel>
-
-        <Panel eyebrow="воспроизводимость" title="Одна команда, детерминированно">
-          <div className="grid gap-3 text-[12.5px]">
-            <pre className="rounded-md border bg-panel-2 p-2.5 font-mono text-[12px] break-all whitespace-pre-wrap text-ink-2">
-              uv run python run.py --data ../task/data --out ../out
-            </pre>
-            <p className="text-ink-2">
-              Без LLM и без сети: только pandas/networkx на локальных parquet. Louvain запускается с фиксированным{' '}
-              <code className="font-mono">seed=42</code>, посредничество считается точно (без выборки). Одни и те же входные parquet всегда дают
-              одни и те же {num(stats.nodes)} строк <code className="font-mono">nodes_roles.csv</code>.
-            </p>
-            <p className="text-muted-foreground">
-              Время прогона печатается пайплайном в конце каждого запуска (<code className="font-mono">time.perf_counter()</code> в run.py); в
-              репозитории оно не зафиксировано как число.
-            </p>
+        <Panel title="Роль AI-ассистента" eyebrow="объяснение результатов">
+          <div className="grid gap-3 text-sm leading-relaxed text-ink-2">
+            <p>Ассистент через OpenAI Responses API выбирает инструменты сервера и формулирует ответ по их результатам. Роли, пороги, приоритет и числа в выгрузках рассчитываются независимо от LLM.</p>
+            <p>Детерминированные инструменты анализа доступны и без ключа LLM.</p>
+            <Link to="/assistant" className="inline-flex min-h-11 w-fit items-center gap-2 rounded-md font-medium text-primary">Открыть ассистента <ArrowRightIcon className="size-4" aria-hidden /></Link>
           </div>
         </Panel>
+      </div>
 
-        <Panel eyebrow="границы" title="Чего система не делает">
-          <ul className="grid gap-2 text-[12.5px] text-ink-2">
-            <li className="flex gap-2">
-              <HypTag>гипотезы</HypTag>
-              <span>Роли и кластеры — предположения для проверки аналитиком, не утверждения о виновности.</span>
-            </li>
-            <li>— Не использует внешние данные: только исходящие внутрибанковские переводы {num(stats.seeds)} seed-клиентов на 4 колена из выгрузки организаторов.</li>
-            <li>— Louvain на кластерах неориентированный: кто в кластере собирает, а кто раздаёт — вопрос интерпретации по составу, не самого разбиения.</li>
-            <li>
-              — {num(stats.byDepth[4] ?? 0)} узлов на 4-м колене без исходящих — обрыв обхода выгрузкой, а не признак «конечного получателя»; пайплайн
-              размечает их отдельно (<code className="font-mono">truncated</code>).
-            </li>
-            <li>— У seed-клиентов входящие переводы недостоверны (обход шёл только от них), масштаб оценивается по исходящим.</li>
-            <li>— В данных виден только порог 5 000 ₸ и переводы внутри одного банка — переводы мимо него в графе не появятся.</li>
+      <details className="group min-w-0 rounded-2xl border bg-card p-5">
+        <summary className="cursor-pointer rounded-sm text-base font-semibold">Технологии и движение данных</summary>
+        <div className="mt-5 grid min-w-0 gap-5 text-sm leading-relaxed md:grid-cols-3">
+          <div className="grid content-start gap-2">
+            <h2 className="font-semibold">Пайплайн · Python и uv</h2>
+            <p className="text-ink-2">pandas, pyarrow, networkx, numpy, scipy. Читает три parquet, считает метрики, роли, кластеры и приоритет, создаёт выгрузки.</p>
+          </div>
+          <div className="grid content-start gap-2">
+            <h2 className="font-semibold">Сервер · Bun и Hono</h2>
+            <p className="text-ink-2">hyparquet читает таблицы при загрузке набора. d3-force строит раскладку графа. API отдаёт результаты, аналитические проверки и инструменты ассистента.</p>
+          </div>
+          <div className="grid content-start gap-2">
+            <h2 className="font-semibold">Интерфейс · React 19</h2>
+            <p className="text-ink-2">React Router 8, Vite, TypeScript, Tailwind CSS v4, shadcn/ui на Base UI, lucide-react и canvas 2D. Отображает данные API и связи клиентов.</p>
+          </div>
+        </div>
+      </details>
+
+      <div className="grid min-w-0 items-start gap-4 lg:grid-cols-2">
+        <Panel title="Границы данных" eyebrow="важно при проверке">
+          <ul className="grid gap-3 text-sm leading-relaxed text-ink-2">
+            <li>В наборе {num(stats.seeds)} исходных клиентов, обход охватывает {stats.maxDepth} {plural(stats.maxDepth, 'колено', 'колена', 'колен')}. Последнее колено включает {num(stats.byDepth[stats.maxDepth] ?? 0)} клиентов; отсутствие исходящих на нём отмечается как граница обхода.</li>
+            <li>Входящие seed-клиентов неполны. Анализ ограничен загруженной выпиской, без внешнего обогащения.{stats.minTxKzt != null && <> Минимальный перевод в ней — {kzt(stats.minTxKzt)}.</>}</li>
+            <li>Louvain использует неориентированную проекцию; направление потоков исследуется отдельно.</li>
+            <li className="flex flex-wrap items-start gap-2"><HypTag /> Выводы помогают выбрать следующую проверку, не подтверждая причастность.</li>
+          </ul>
+        </Panel>
+        <Panel title="При росте сети" eyebrow="подход для большого объёма">
+          <ul className="grid gap-3 text-sm leading-relaxed text-ink-2">
+            <li>Показывать фрагмент вокруг клиента или группы вместо всей сети.</li>
+            <li>Готовить раскладку и агрегаты заранее, загружать данные частями.</li>
+            <li>Использовать приближённое посредничество по выборке и отдельно проверять влияние приближения на приоритет.</li>
+            <li>Сохранять объяснимые правила и проверять их пороги на новом распределении данных.</li>
           </ul>
         </Panel>
       </div>

@@ -10,7 +10,7 @@ import { cn } from '@/lib/utils'
 type SortKey = 'size' | 'seed' | 'turnover'
 const SORTS: { value: SortKey; label: string; cmp: (a: Cluster, b: Cluster) => number }[] = [
   { value: 'size', label: 'по размеру', cmp: (a, b) => b.nNodes - a.nNodes },
-  { value: 'seed', label: 'по числу seed', cmp: (a, b) => b.nSeed - a.nSeed },
+  { value: 'seed', label: 'по исходным клиентам', cmp: (a, b) => b.nSeed - a.nSeed },
   { value: 'turnover', label: 'по внутреннему обороту', cmp: (a, b) => b.sumKztInternal - a.sumKztInternal },
 ]
 
@@ -48,21 +48,21 @@ export default function ClustersPage() {
   return (
     <>
       <PageHeader
-        eyebrow="кластеры · Louvain · clusters.csv"
-        title="Кластеры"
+        eyebrow="Сеть · состав и основания"
+        title="Группы связанных клиентов"
         lede="Louvain на неориентированной проекции: вес ребра — сумма переводов в обе стороны. Направление денег при разбиении на кластеры теряется — его нужно восстанавливать внутри каждого кластера отдельно."
         aside={
           <Button variant="outline" nativeButton={false} render={<a href={api.exportUrl('clusters.csv')} download />}>
-            Скачать clusters.csv
+            Скачать группы CSV
           </Button>
         }
       />
 
       <StatStrip
         items={[
-          { value: num(data.length), label: 'Всего кластеров' },
+          { value: num(data.length), label: 'Всего групп' },
           { value: num(big.length), label: 'Из них ≥ 3 узлов' },
-          { value: num(data.filter((c) => c.nSeed > 0).length), label: 'С seed' },
+          { value: num(data.filter((c) => c.nSeed > 0).length), label: 'С исходными клиентами' },
           { value: num(largest), label: 'Крупнейший, узлов' },
         ]}
       />
@@ -140,7 +140,7 @@ function ClusterCard({ cluster: c, highlighted }: { cluster: Cluster; highlighte
       )}
     >
       <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
-        <h3 className="font-heading text-lg font-semibold">Кластер {c.clusterId}</h3>
+        <h3 className="text-base font-semibold">Группа №{c.clusterId}</h3>
         <span className="font-mono text-xs tnum text-muted-foreground">
           {c.nNodes} узлов · {c.nSeed} seed · {kztShort(c.sumKztInternal)} внутр. оборот
         </span>

@@ -28,7 +28,7 @@ export function PageHeader({
     <header className="flex flex-wrap items-end justify-between gap-x-10 gap-y-4">
       <div className="grid max-w-3xl gap-3">
         <Eyebrow>{eyebrow}</Eyebrow>
-        <h1 className="font-heading text-3xl leading-[1.05] font-bold tracking-tight md:text-[40px]">{title}</h1>
+        <h1 className="font-heading text-[23px] leading-tight font-bold tracking-tight md:text-[28px]">{title}</h1>
         {lede && <p className="max-w-[68ch] text-[15px] text-ink-2">{lede}</p>}
       </div>
       {aside}
@@ -45,13 +45,13 @@ export function StatStrip({
   className?: string
 }) {
   return (
-    <dl className={cn('flex flex-wrap border-y', className)}>
+    <dl className={cn('grid grid-cols-[repeat(auto-fit,minmax(min(100%,170px),1fr))] gap-2.5', className)}>
       {items.map((s, i) => (
-        <div key={i} className="grid gap-0.5 border-r py-3.5 pr-6 pl-0 last:border-r-0 [&:not(:first-child)]:pl-6">
-          <dd className="font-mono text-2xl leading-tight font-medium tnum" style={s.tone ? { color: s.tone } : undefined}>
+        <div key={i} className="grid min-w-0 content-start gap-1.5 rounded-xl border bg-card px-4 py-3.5">
+          <dd className="font-mono text-[26px] leading-tight font-medium wrap-anywhere tnum" style={s.tone ? { color: s.tone } : undefined}>
             {s.value}
           </dd>
-          <dt className="text-xs text-muted-foreground">{s.label}</dt>
+          <dt className="text-[13px] text-ink-2">{s.label}</dt>
         </div>
       ))}
     </dl>
@@ -103,16 +103,15 @@ export function Segmented<T extends string>({
   className?: string
 }) {
   return (
-    <div role="tablist" className={cn('inline-flex flex-wrap gap-1 rounded-lg border bg-panel-2 p-1', className)}>
+    <div role="group" aria-label="Варианты отображения" className={cn('inline-flex flex-wrap gap-1 rounded-lg border bg-panel-2 p-1', className)}>
       {options.map((o) => (
         <button
           key={o.value}
           type="button"
-          role="tab"
-          aria-selected={o.value === value}
+          aria-pressed={o.value === value}
           onClick={() => onChange(o.value)}
           className={cn(
-            'rounded-md px-2.5 py-1.5 text-xs font-medium whitespace-nowrap transition-colors',
+            'min-h-9 rounded-md px-3 py-2 text-xs font-medium whitespace-nowrap transition-colors',
             o.value === value ? 'bg-card text-foreground' : 'text-muted-foreground hover:text-foreground',
           )}
         >
@@ -278,7 +277,7 @@ function schem(role: Role, reduced: boolean): string {
       flow([p, [160, cy]], i, 2)
       nodes += nd(p[0], p[1], 6, grey)
     })
-    nodes += nd(160, cy, 11, color) + `<text x="182" y="${cy + 4}" fill="var(--muted-foreground)" font-size="11" font-family="var(--font-mono)">остаётся</text>`
+    nodes += nd(160, cy, 11, color) + `<text x="182" y="${cy + 4}" fill="var(--muted-foreground)" font-size="10" font-family="var(--font-sans)">мало исходящих</text>`
   } else if (role === 'coordinator') {
     edges.push({ d: 'M10,70 L90,70', dashed: true })
     nodes += `<text x="4" y="55" fill="var(--muted-foreground)" font-size="11" font-family="var(--font-mono)">вне данных</text>`
@@ -321,8 +320,7 @@ export function LoadState({ error, reload, label = 'Загрузка…' }: { er
     <Panel eyebrow="ошибка" title="Не удалось получить данные">
       <div className="grid justify-items-start gap-3">
         <p className="text-sm text-ink-2">
-          {error}. Проверьте, что сервер запущен (<code className="font-mono">bun run dev</code>) и пайплайн создал папку{' '}
-          <code className="font-mono">out/</code>.
+          Не удалось загрузить результаты анализа. Повторите запрос. Если ошибка сохраняется, обратитесь к команде проекта.
         </p>
         <p className="text-sm text-ink-2">Если выгрузка ещё не загружена — загрузите три файла .parquet (nodes, edges, transactions), роли посчитаются автоматически.</p>
         <div className="flex flex-wrap gap-2">
@@ -333,6 +331,7 @@ export function LoadState({ error, reload, label = 'Загрузка…' }: { er
             Повторить
           </Button>
         </div>
+        <details className="text-xs text-muted-foreground"><summary className="cursor-pointer">Подробности ошибки</summary><p className="mt-2 break-words">{error}</p></details>
       </div>
     </Panel>
   )

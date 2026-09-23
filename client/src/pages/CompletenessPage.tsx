@@ -5,9 +5,16 @@ import { useApi } from '@/lib/use-api'
 
 const BUCKETS = ['1', '2', '3+'] as const
 
+async function loadCompleteness() {
+  const [analysis, stats] = await Promise.all([api.completeness(), api.stats()])
+  return { analysis, stats }
+}
+
 export default function CompletenessPage() {
-  const { data, error, reload } = useApi(api.completeness)
-  if (!data) return <LoadState error={error} reload={reload} />
+  const { data: result, error, reload } = useApi(loadCompleteness)
+  if (!result) return <LoadState error={error} reload={reload} />
+  const { analysis: data, stats } = result
+  const lastFull = stats.maxDepth - 1
 
   const requests = [
     {
@@ -15,8 +22,8 @@ export default function CompletenessPage() {
       why: 'у консолидаторов виден только вход, посчитанный от seed — их собственные плательщики за пределами обхода не выгружены',
     },
     {
-      what: <>5-е колено для {num(data.truncated)} обрезанных узлов, первыми — получатели {num(data.transitToTruncated)} транзитов</>,
-      why: 'обход остановлен на глубине 4; транзиты на этой границе — самый вероятный путь, куда деньги идут дальше',
+      what: <>Следующее колено ({stats.maxDepth + 1}) для {num(data.truncated)} обрезанных узлов, первыми — получатели {num(data.transitToTruncated)} транзитов</>,
+      why: `обход остановлен на глубине ${stats.maxDepth}; получатели транзитных узлов помогут проверить, куда средства могли уйти дальше`,
     },
     {
       what: <>Исходящие {num(data.seedNoOut)} seed-клиентов за расширенный период</>,
@@ -27,26 +34,24 @@ export default function CompletenessPage() {
   return (
     <>
       <PageHeader
-        eyebrow="анализ · полнота"
-        title="Чего не хватает в выгрузке"
-        lede="Белые пятна выгрузки и какие запросы в банк сделать следующими."
+        eyebrow="проверки · полнота данных"
+        title="Пробелы в данных"
+        lede="Что не видно в выписке и какие данные помогут продолжить проверку. Отсутствие переводов на границе обхода не означает, что средства остались у клиента."
       />
 
       <StatStrip
         items={[
           { value: num(data.seedNoOut), label: 'seed без исходящих' },
-          { value: num(data.truncated), label: 'обрезано 4-м коленом' },
+          { value: num(data.truncated), label: `обрыв на колене ${stats.maxDepth}` },
           { value: `≈ ${num(data.expectedContinue)}`, label: 'из них вероятно продолжают', tone: 'var(--gold)' },
           { value: num(data.orphans), label: 'изолированных' },
           { value: '—', label: 'входящие извне — не видны' },
         ]}
       />
 
-      <Panel eyebrow="метод" title="Настоящий сток или обрыв">
+      <Panel eyebrow="метод" title="Конечный получатель или граница выгрузки">
         <p className="max-w-[80ch] text-[13px] text-ink-2">
-          На 3-м колене исходящие переводы выгружены полностью, поэтому там видно, какая доля узлов с тем или иным числом входящих связей
-          продолжает платить дальше. Эту долю переносим на 4-е колено — там обход прерван, и не видно, кто из обрезанных узлов реально является
-          стоком, а кто просто не попал в выгрузку.
+          Для оценки используется предыдущее колено ({lastFull >= 0 ? lastFull : 'не представлено'}): какая доля клиентов с тем или иным числом входящих связей продолжает платить дальше. Эту долю переносим на последнее колено ({stats.maxDepth}), где обход прерван. Это оценка по наблюдаемой выборке, а не подтверждение остатка средств.
         </p>
         <div className="mt-4 overflow-x-auto rounded-lg border">
           <table className="w-full text-[13px]">
@@ -56,10 +61,10 @@ export default function CompletenessPage() {
                   Входящих связей
                 </th>
                 <th scope="col" className="py-2 pr-3 text-right font-normal">
-                  Доля продолжающих на 3-м колене
+                  Доля продолжающих · колено {lastFull >= 0 ? lastFull : '—'}
                 </th>
                 <th scope="col" className="py-2 pr-3 text-right font-normal">
-                  Обрезано на 4-м колене
+                  Обрыв · колено {stats.maxDepth}
                 </th>
                 <th scope="col" className="py-2 pr-3 text-right font-normal">
                   Ожидаемо продолжают
@@ -74,7 +79,7 @@ export default function CompletenessPage() {
                   <tr key={b} className="border-b transition-colors last:border-b-0 hover:bg-panel-2/60">
                     <td className="py-2 pr-3 pl-3 font-mono tnum">{b}</td>
                     <td className="py-2 pr-3 text-right font-mono tnum">
-                      {pct(c.share)} <span className="text-muted-foreground">· n={num(c.n)}</span>
+                      {c.n ? pct(c.share) : 'нет наблюдений'} <span className="text-muted-foreground">· n={num(c.n)}</span>
                     </td>
                     <td className="py-2 pr-3 text-right font-mono tnum">{num(truncated)}</td>
                     <td className="py-2 pr-3 text-right font-mono tnum text-gold">{num(Math.round(truncated * c.share))}</td>

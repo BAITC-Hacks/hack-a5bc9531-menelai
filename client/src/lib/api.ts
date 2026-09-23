@@ -10,13 +10,13 @@ export type Stats = {
   /** last crawl hop; nodes there have no outgoing edges because the crawl stopped */
   maxDepth: number
   /** smallest transfer amount present in the export */
-  minTxKzt: number
+  minTxKzt: number | null
   nodes: number
   edges: number
   transactions: number
   seeds: number
   totalKzt: number
-  period: [string, string]
+  period: [string, string] | null
   /** node count per crawl hop 0..maxDepth */
   byDepth: number[]
   /** null until pipeline/run.py has produced out/ */
