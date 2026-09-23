@@ -12,7 +12,7 @@ u = pd.DataFrame([json.loads(l) for l in open(EVAL / "usage.jsonl")])
 d = pd.read_csv(SNAP / "nodes_roles.csv").set_index("gid")
 esc = lambda s: str(s).replace("|", "/").replace("\n", " ")
 
-L = ["# Жюри-симуляция: оценка методологии «Граф денег» (снимок out/ → snapshot_v1)", "",
+L = ["# Жюри-симуляция: оценка методологии Moneylai (снимок out/ → snapshot_v1)", "",
      f"Модель: `{', '.join(sorted(u.model.unique()))}` (OpenAI Responses API). Все оценки ниже — ответы модели в роли жюри, а не факты; "
      "числа по данным пересчитаны кодом. Сырые ответы — `pipeline/eval/raw/*.json`.", "",
      "**Версии.** Снимок `snapshot_v1` = out/ на 14:58 + правила v1 (`snapshot_v1/RULES_v1.md`). В 15:07 другая сессия переписала "

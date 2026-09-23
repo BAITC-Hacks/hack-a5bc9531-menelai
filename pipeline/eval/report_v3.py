@@ -17,7 +17,7 @@ d = pd.read_csv(SNAP / "nodes_roles.csv").set_index("gid")
 t1 = pd.read_csv(EVAL / "sim_table.csv")  # v1, для сравнения
 esc = lambda s: str(s).replace("|", "/").replace("\n", " ")
 
-L = ["# Жюри-симуляция v3: оценка методологии «Граф денег» (снимок out/ на момент прогона → snapshot_v3, RULES.md v3)", "",
+L = ["# Жюри-симуляция v3: оценка методологии Moneylai (снимок out/ на момент прогона → snapshot_v3, RULES.md v3)", "",
      f"Модель: `{', '.join(sorted(u.model.unique()))}` (OpenAI Responses API). Оценки ниже — ответы модели в роли жюри, не факты; "
      "числа по данным пересчитаны кодом. Сырые ответы — `pipeline/eval/raw_v3/*.json`.", "",
      "**Что перезапущено.** Только задачи 2 (симуляция защиты) и 3 (консистентность evidence), на актуальном снимке пайплайна v3 "

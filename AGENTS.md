@@ -1,6 +1,6 @@
 # AGENTS.md
 
-Hackathon project (HackAlem AI, 5 hours): **«Граф денег»**, an AML analysis tool. Input is a 4-hop graph of outgoing bank transfers from 81 known clients (2 248 nodes). The tool assigns each node a role, a cluster and a priority, and explains why in words an analyst can follow.
+Hackathon project (HackAlem AI, 5 hours): **Moneylai**, an AML analysis tool. Input is a 4-hop graph of outgoing bank transfers from 81 known clients (2 248 nodes). The tool assigns each node a role, a cluster and a priority, and explains why in words an analyst can follow.
 
 - Case spec (Russian): `task/HackAlem AI_ Граф денег_…pdf`
 - Dataset description: `task/README.md`
