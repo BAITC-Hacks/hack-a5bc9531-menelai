@@ -82,6 +82,17 @@ bun run dev
 
 Клиент: http://localhost:5173, API: http://localhost:3001. Путь к данным по умолчанию — `task/data`, переопределяется переменной `DATA_DIR`. Сервер также читает CSV пайплайна из `out/` (переменная `OUT_DIR`) и не стартует без них; формат — [docs/PIPELINE_CONTRACT.md](docs/PIPELINE_CONTRACT.md).
 
+
+### Пайплайн (Python)
+
+Роли, кластеры, приоритет и три CSV по ТЗ считает `pipeline/run.py` — одна команда, ~4 с:
+
+```bash
+cd pipeline && uv sync && uv run python run.py
+```
+
+Правила ролей с источниками порогов — [pipeline/RULES.md](pipeline/RULES.md); запуск, проверка (синтетический тест, детерминизм, чувствительность, симуляция жюри), ограничения и масштабирование — [pipeline/README.md](pipeline/README.md).
+
 ## Как проверить
 
 ```bash
